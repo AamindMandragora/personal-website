@@ -1,0 +1,190 @@
+{
+  "name": "Advayth Pashupati",
+  "location": "Chicago, IL",
+  "email": "advayth2@illinois.edu",
+  "phone": "+1 (224) 391-2254",
+  "github": "https://github.com/AamindMandragora/",
+  "linkedin": "https://www.linkedin.com/in/advayth-pashupati/",
+  "education": {
+    "school": "University of Illinois at Urbana–Champaign",
+    "dates": "Aug 2025 -- May 2028",
+    "degree": "B.S. in Mathematics (Technical GPA: 4.0)",
+    "coursework": [
+      "System Programming",
+      "Computer Architecture",
+      "Data Structures",
+      "Abstract Algebra",
+      "Number Theory",
+      "Linear Algebra",
+      "Statistics & Probability"
+    ],
+    "honors": "James Scholar in the College of Liberal Arts and Sciences"
+  },
+  "awards": [
+    "American Invitational Mathematics Exam (AIME) Qualifier",
+    "USACO Silver Division",
+    "Quiz Bowl Nationals"
+  ],
+  "languages": [
+    "C++",
+    "C",
+    "Python",
+    "Lean4",
+    "Verilog",
+    "Dafny",
+    "Rust",
+    "SQL",
+    "React",
+    "TypeScript"
+  ],
+  "tools": [
+    "Git",
+    "Linux",
+    "Tensorflow",
+    "NumPy",
+    "Jupyter Notebook",
+    "MongoDB",
+    "FastAPI",
+    "PyElastica"
+  ],
+  "research": [
+    {
+      "id": "focal",
+      "name": "FOCAL Lab",
+      "subtitle": "Formal Methods of Computing \\& Verifiable Constrained LLM Decoding",
+      "dates": "Sept 2025 -- Present",
+      "tags": [
+        "formal_verification",
+        "ml",
+        "dafny",
+        "python"
+      ],
+      "bullets": [
+        "Researching verified generation of custom constrained decoding algorithms (CSDs) designed to effectively provide syntactic and semantic correctness.",
+        "Implementing Dafny-based contracts to ensure LLM-generated CSDs provably satisfy conditions necessary for valid generation (eventual termination, grammatical correctness).",
+        "Evaluating the framework's improvement of several HuggingFace models (Qwen, Mistral, Llama 3) on benchmarks like GSM-Symbolic and FOLIO against other attempted solutions (CRANE, DINGO)."
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "id": "abbvie",
+      "name": "AbbVie",
+      "subtitle": "Business Technology Solutions Intern",
+      "dates": "June 2024 -- Aug 2024",
+      "tags": [
+        "swe",
+        "python",
+        "sql",
+        "ml"
+      ],
+      "bullets": [
+        "Built a Streamlit UI enabling CRUD operations for JSON configuration files used by an internal Generative AI API and migrated 300+ prompt templates into a PostgreSQL database.",
+        "Designed a modular configuration system enabling dynamic pipeline updates without code changes, improving iteration speed for internal AI workflows."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "malloc",
+      "name": "High-Performance Memory Allocator",
+      "subtitle": "Custom TLSF Allocator in C",
+      "dates": "Feb 2026 -- March 2026",
+      "tags": [
+        "systems",
+        "c",
+        "cpp",
+        "quant_dev"
+      ],
+      "bullets": [
+        "Developed a custom memory allocator (malloc, calloc, realloc, free) in pure C, outperforming highly optimized glibc by 1\\% and placing 3rd overall on the competitive class leaderboard.",
+        "Designed a two-level segregated fit (TLSF) allocator utilizing 128-bit bitmask free-list indexing, localized arena allocation, and a deferred-free cache to optimize repeated alloc/free patterns.",
+        "Engineered aggressive block-level optimizations, including compressed 32-bit pointers, boundary-tag coalescing with footer elision, and flag-encoded headers for O(1) neighbor status verification."
+      ]
+    },
+    {
+      "id": "squishy",
+      "name": "Squishy.ai",
+      "subtitle": "Text-to-Physics Soft Robotics Simulation Platform",
+      "dates": "Jan 2026 -- Feb 2026",
+      "tags": [
+        "swe",
+        "ml",
+        "python",
+        "hackathon"
+      ],
+      "bullets": [
+        "Built a full-stack platform that translates natural language into executable soft robotics physics simulations via PyElastica (Cosserat rod theory), winning the Keywords AI (YC W24) Hackathon.",
+        "Architected a high-performance FastAPI backend utilizing Numba JIT compilation, coupled with a headless Matplotlib and FFmpeg rendering pipeline for seamless GIF generation.",
+        "Developed an interactive React/Vite frontend featuring real-time simulation visualization and LLM-routed code generation through the Keywords AI gateway."
+      ]
+    },
+    {
+      "id": "lean4game",
+      "name": "Abstract Algebra, the Game",
+      "subtitle": "Interactive Lean4 Proof Game",
+      "dates": "March 2026 -- Present",
+      "tags": [
+        "formal_verification",
+        "math"
+      ],
+      "bullets": [
+        "Developing an interactive Lean4 proof game hosted on adam.math.hhu.de to teach abstract algebra via guided theorem proving (developed for the AI for Math Summer Fellowship).",
+        "Designed and shipped World 1 (Group World, 12 levels), implementing a notation-agnostic MyGroup typeclass to cover group axioms, identity uniqueness, and cancellation laws.",
+        "Completed World 2 (Reflection World) focusing on abelian groups, subgroups, and normal groups, while actively architecting Worlds 3--5 for advanced topics like homomorphisms and group actions."
+      ]
+    },
+    {
+      "id": "audio_relay",
+      "name": "Asynchronous Audio Relay System",
+      "subtitle": "Concurrent Networking in C",
+      "dates": "Jan 2026 -- Present",
+      "tags": [
+        "systems",
+        "c",
+        "cpp",
+        "networking",
+        "quant_dev"
+      ],
+      "bullets": [
+        "Developed a multithreaded TCP server in C (Linux/Raspberry Pi) to serve as an asynchronous store-and-forward audio relay for multiple concurrent clients.",
+        "Architected a custom client--server protocol using POSIX sockets and pthreads to efficiently manage connection lifecycles and concurrent message delivery.",
+        "Engineered a lock-free ring buffer for concurrent audio ingestion, drastically reducing synchronization overhead and improving system latency."
+      ]
+    },
+    {
+      "id": "sigecom",
+      "name": "SIGEcom",
+      "subtitle": "Trend-Based Algorithmic Trading \\& Game Theory",
+      "dates": "Sept 2025 -- Dec 2025",
+      "tags": [
+        "quant_dev",
+        "python",
+        "trading",
+        "finance"
+      ],
+      "bullets": [
+        "Designed, backtested, and deployed multi-asset algorithmic trading strategies in Python, utilizing SMA, EMA+RSI, MACD, and statistical arbitrage approaches.",
+        "Integrated custom strategies into a live simulation framework to seamlessly trade real-time cryptocurrency and FX market data.",
+        "Achieved positive PnL across a diverse portfolio of assets, including BTC, ETH, SOL, INR, ZAR, and JPY."
+      ]
+    },
+    {
+      "id": "fin_eng",
+      "name": "Financial Engineering",
+      "subtitle": "Options Theory \\& Neural Network Applications",
+      "dates": "Sept 2025 -- Dec 2025",
+      "tags": [
+        "quant_dev",
+        "python",
+        "finance",
+        "ml"
+      ],
+      "bullets": [
+        "Implemented the Cox--Ross--Rubinstein binomial model in Python to price European and American options, verifying convergence toward Black--Scholes benchmark values.",
+        "Leveraged neural network de-Americanization techniques to convert market American option prices into equivalent European prices, enabling accurate implied volatility computation.",
+        "Analyzed early exercise boundaries and computational efficiency across various market regimes to optimize pricing accuracy."
+      ]
+    }
+  ]
+}

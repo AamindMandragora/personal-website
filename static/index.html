@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advayth Pashupati — Resume Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg: #1e1e1e; --sidebar: #252526; --tab: #2d2d2d; --tab-active: #1e1e1e;
+    --border: #333; --text: #cccccc; --dim: #888; --accent: #007acc;
+    --green: #4ec9b0; --red: #f14c4c; --yellow: #cca700; --orange: #ce9178;
+    --blue: #569cd6; --hover: #2a2d2e; --term-bg: #1a1a1a;
+    --font: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  }
+
+  html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:var(--font); font-size:13px; }
+
+  /* ── Layout ── */
+  #app { display:flex; flex-direction:column; height:100vh; }
+  #titlebar { height:32px; background:#3c3c3c; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--dim); border-bottom:1px solid var(--border); flex-shrink:0; }
+  #main { display:flex; flex:1; overflow:hidden; }
+
+  /* ── Sidebar ── */
+  #sidebar { width:220px; background:var(--sidebar); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+  #sidebar-header { padding:10px 14px 6px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:var(--dim); display:flex; justify-content:space-between; align-items:center; }
+  #sidebar-header button { background:none; border:none; color:var(--text); cursor:pointer; font-size:16px; line-height:1; }
+  .sidebar-label { font-size:11px; color:var(--dim); padding:2px 14px 6px; letter-spacing:0.06em; }
+  .file-item { padding:4px 14px 4px 24px; cursor:pointer; display:flex; align-items:center; gap:6px; justify-content:space-between; font-size:13px; }
+  .file-item:hover { background:var(--hover); }
+  .file-item.active { background:#37373d; }
+  .file-icon { font-size:11px; }
+  .file-delete { color:var(--dim); cursor:pointer; font-size:11px; opacity:0; transition:opacity .15s; }
+  .file-item:hover .file-delete { opacity:0.6; }
+  .file-delete:hover { opacity:1 !important; }
+  #sidebar-tags { padding:6px 14px 8px; border-top:1px solid var(--border); font-size:11px; color:var(--dim); margin-top:auto; }
+  #sidebar-tags .tag-label { font-weight:600; margin-bottom:4px; }
+  .tag { display:inline-block; background:#333; border-radius:3px; padding:1px 5px; margin:1px 2px; font-size:10px; color:var(--green); }
+  .create-input { width:calc(100% - 28px); margin:2px 14px; background:#3c3c3c; border:1px solid var(--accent); color:var(--text); font-size:12px; padding:2px 4px; font-family:var(--font); outline:none; border-radius:2px; }
+
+  /* ── Tabs ── */
+  #tabs-bar { display:flex; background:var(--tab); border-bottom:1px solid var(--border); height:36px; flex-shrink:0; align-items:flex-end; overflow-x:auto; overflow-y:hidden; }
+  #tabs-container { display:flex; align-items:flex-end; min-width:0; }
+  #tabs-bar::-webkit-scrollbar { height:0; }
+  .tab { padding:6px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; border-right:1px solid var(--border); font-size:12px; color:var(--dim); white-space:nowrap; max-width:200px; flex-shrink:0; border-top:2px solid transparent; }
+  .tab.active { background:var(--tab-active); color:var(--text); border-top-color:var(--accent); }
+  .tab .close { font-size:11px; margin-left:4px; opacity:0; cursor:pointer; transition:opacity .15s; }
+  .tab:hover .close { opacity:0.5; }
+  .tab .close:hover { opacity:1; }
+  #tab-actions { display:flex; gap:4px; margin:4px 8px 4px auto; align-items:center; flex-shrink:0; }
+
+  /* ── Buttons ── */
+  .btn { border:none; padding:4px 12px; cursor:pointer; font-family:var(--font); font-weight:700; font-size:11px; border-radius:3px; display:flex; align-items:center; gap:4px; white-space:nowrap; transition:filter .15s; }
+  .btn:hover { filter:brightness(1.15); }
+  .btn-run { background:var(--green); color:#1e1e1e; }
+  .btn-dl { background:var(--blue); color:#fff; }
+  .btn-dim { background:#444; color:var(--dim); }
+  .btn-dl.loading { opacity:0.6; pointer-events:none; }
+
+  /* ── Editor area ── */
+  #editor-area { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  #content { flex:1; overflow:hidden; position:relative; }
+
+  /* ── Code editor ── */
+  .editor-wrap { display:flex; height:100%; overflow:hidden; }
+  .line-numbers { width:48px; background:var(--bg); border-right:1px solid var(--border); padding:12px 0; text-align:right; color:var(--dim); font-size:12px; line-height:20px; user-select:none; flex-shrink:0; overflow-y:auto; font-family:var(--font); }
+  .line-numbers div { padding-right:12px; }
+  .editor-container { flex:1; position:relative; }
+  .editor-highlight, .editor-textarea { position:absolute; top:0; left:0; right:0; bottom:0; margin:0; padding:12px 16px; font-size:13px; line-height:20px; font-family:var(--font); white-space:pre-wrap; word-break:break-word; }
+  .editor-highlight { pointer-events:none; overflow:auto; }
+  .editor-textarea { background:transparent; color:transparent; caret-color:var(--text); border:none; outline:none; resize:none; width:100%; height:100%; overflow:auto; }
+
+  /* syntax colors */
+  .syn-comment { color:#6a9955; }
+  .syn-key { color:#9cdcfe; }
+  .syn-eq { color:#d4d4d4; }
+  .syn-str { color:#ce9178; }
+  .syn-bool { color:#569cd6; }
+  .syn-num { color:#b5cea8; }
+  .syn-bracket { color:#d4d4d4; }
+
+  /* ── PDF viewer ── */
+  .pdf-viewer { height:100%; display:flex; flex-direction:column; background:#525659; }
+  .pdf-toolbar { background:#2d2d2d; padding:8px 16px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; z-index:10; gap:8px; }
+  .pdf-toolbar .label { font-size:12px; }
+  .pdf-toolbar .btns { display:flex; gap:6px; }
+  .pdf-frame { flex:1; border:none; width:100%; }
+
+  /* ── Empty state ── */
+  .empty-state { display:flex; align-items:center; justify-content:center; height:100%; color:var(--dim); font-size:14px; }
+
+  /* ── Compiling overlay ── */
+  .compile-overlay { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(30,30,30,0.85); display:flex; align-items:center; justify-content:center; z-index:100; flex-direction:column; gap:12px; }
+  .spinner { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--green); border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Terminal ── */
+  #terminal { height:130px; border-top:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+  #terminal-header { padding:4px 12px; background:var(--tab); border-bottom:1px solid var(--border); font-size:11px; color:var(--dim); display:flex; align-items:center; gap:8px; text-transform:uppercase; letter-spacing:0.05em; }
+  #terminal-header span.t { color:var(--text); }
+  #terminal-header .clear { margin-left:auto; cursor:pointer; font-size:11px; opacity:0.6; }
+  #terminal-header .clear:hover { opacity:1; }
+  #terminal-body { flex:1; overflow:auto; padding:6px 12px; background:var(--term-bg); font-size:12px; line-height:1.6; }
+  .log-error { color:var(--red); }
+  .log-success { color:var(--green); }
+  .log-warn { color:var(--yellow); }
+  .log-cmd { color:var(--blue); }
+  .log-hint { color:var(--orange); font-style:italic; }
+  .log-info { color:var(--dim); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="titlebar"><span style="opacity:0.7">Advayth Pashupati — Resume Generator</span></div>
+  <div id="main">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div id="sidebar-header"><span>Explorer</span><button onclick="startCreate()" title="New file">+</button></div>
+      <div class="sidebar-label">PORTFOLIO</div>
+      <div id="create-area"></div>
+      <div id="file-list"></div>
+      <div id="sidebar-tags">
+        <div class="tag-label">Industry tags:</div>
+        <div id="tag-container"></div>
+      </div>
+    </div>
+
+    <!-- Editor area -->
+    <div id="editor-area">
+      <div id="tabs-bar">
+        <div id="tabs-container"></div>
+        <div id="tab-actions"></div>
+      </div>
+      <div id="content"></div>
+      <div id="terminal">
+        <div id="terminal-header">
+          <span class="t">Terminal</span>
+          <span class="clear" onclick="clearTerminal()" title="Clear">⌧</span>
+        </div>
+        <div id="terminal-body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───
+const INDUSTRY_TAGS = ["quant","systems","ai_ml","software_engineering","formal_methods"];
+
+const DEFAULT_CFG = `# Resume Configuration
+# Edit filters, press ▶ Run to generate PDF
+# Industry-only filtering
+industry=[quant, systems, ai_ml]
+
+# Optional:
+include_projects=true
+min_bullets=2
+max_bullets=3
+`;
+
+const SYSTEMS_CFG = `# Systems-focused
+industry=[systems, quant]
+include_projects=true
+min_bullets=2
+max_bullets=3
+`;
+
+const AI_CFG = `# AI/ML-focused
+industry=[ai_ml, software_engineering, quant]
+include_projects=true
+min_bullets=2
+max_bullets=3
+`;
+
+const FORMAL_CFG = `# Formal Methods focused
+industry=[formal_methods, ai_ml, systems]
+include_projects=true
+min_bullets=2
+max_bullets=3
+`;
+
+const HELP_CFG = `# ═══════════════════════════════════════
+#  Resume Generator — Reference
+# ═══════════════════════════════════════
+#
+# SYNTAX:
+#   key=value           (single value)
+#   key=[a, b, c]       (list)
+#   # comment           (ignored)
+#
+# ── KEYS ─────────────────────────────
+#
+# industry=[...]
+#   quant, systems, ai_ml,
+#   software_engineering,
+#   formal_methods
+#
+# include_projects=true|false
+# min_bullets=N
+# max_bullets=N
+#
+`;
+
+let files = {
+  "cv.pdf": { type: "pdf", content: null },
+  "quant_resume.cfg": { type: "cfg", content: DEFAULT_CFG },
+  "systems_resume.cfg": { type: "cfg", content: SYSTEMS_CFG },
+  "ai_resume.cfg": { type: "cfg", content: AI_CFG },
+  "formal_resume.cfg": { type: "cfg", content: FORMAL_CFG },
+  "README.cfg": { type: "cfg", content: HELP_CFG },
+};
+let activeFile = "cv.pdf";
+let openTabs = ["cv.pdf", "quant_resume.cfg", "systems_resume.cfg"];
+let terminalLogs = [];
+let compiling = false;
+
+// PDF blob URLs (cached)
+let cvBlobUrl = null;
+let generatedBlobUrl = null;
+let generatedFilename = "resume";
+
+// ─── Logging ───
+function log(type, text) {
+  terminalLogs.push({ type, text });
+  renderTerminal();
+}
+function clearTerminal() { terminalLogs = []; renderTerminal(); }
+function renderTerminal() {
+  const el = document.getElementById("terminal-body");
+  el.innerHTML = terminalLogs.map(l => {
+    const prefix = l.type === "cmd" ? "" : l.type === "error" ? "[ERR] " : l.type === "success" ? "[OK]  " : l.type === "warn" ? "[WARN] " : "";
+    return `<div class="log-${l.type}">${prefix}${escapeHtml(l.text)}</div>`;
+  }).join("");
+  el.scrollTop = el.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ─── File operations ───
+function openFile(name) {
+  if (!openTabs.includes(name)) openTabs.push(name);
+  activeFile = name;
+  render();
+}
+
+function closeTab(name, ev) {
+  if (ev) ev.stopPropagation();
+  openTabs = openTabs.filter(t => t !== name);
+  if (activeFile === name) activeFile = openTabs.length ? openTabs[openTabs.length - 1] : null;
+  render();
+}
+
+function startCreate() {
+  const area = document.getElementById("create-area");
+  area.innerHTML = `<input class="create-input" id="create-input" placeholder="filename.cfg" autofocus>`;
+  const inp = document.getElementById("create-input");
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter") finishCreate();
+    if (e.key === "Escape") { area.innerHTML = ""; }
+  });
+  inp.addEventListener("blur", finishCreate);
+  inp.focus();
+}
+
+function finishCreate() {
+  const inp = document.getElementById("create-input");
+  if (!inp) return;
+  let name = inp.value.trim();
+  document.getElementById("create-area").innerHTML = "";
+  if (!name) return;
+  if (!name.endsWith(".cfg")) name += ".cfg";
+  if (files[name]) { log("error", `"${name}" already exists.`); return; }
+  files[name] = { type: "cfg", content: DEFAULT_CFG };
+  log("info", `Created ${name}`);
+  openFile(name);
+}
+
+function deleteFile(name, ev) {
+  ev.stopPropagation();
+  if (name === "cv.pdf" || name === "README.cfg") return;
+  delete files[name];
+  closeTab(name);
+  log("info", `Deleted ${name}`);
+}
+
+// ─── API calls ───
+async function fetchCvPdf() {
+  if (cvBlobUrl) return cvBlobUrl;
+  try {
+    const resp = await fetch("/api/cv.pdf");
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    cvBlobUrl = URL.createObjectURL(blob);
+    return cvBlobUrl;
+  } catch (e) {
+    log("error", `Failed to load CV: ${e.message}`);
+    return null;
+  }
+}
+
+async function compileResume() {
+  const file = files[activeFile];
+  if (!file || file.type !== "cfg") { log("error", "No .cfg file active."); return; }
+  const configText = file.content;
+  const baseName = activeFile.replace(".cfg", "");
+
+  compiling = true;
+  render();
+  log("cmd", `$ generate ${baseName}.pdf`);
+
+  try {
+    const resp = await fetch("/api/compile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config: configText, filename: baseName }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+
+    const blob = await resp.blob();
+    if (generatedBlobUrl) URL.revokeObjectURL(generatedBlobUrl);
+    generatedBlobUrl = URL.createObjectURL(blob);
+    generatedFilename = baseName;
+
+    log("success", `Compiled ${baseName}.pdf (${(blob.size / 1024).toFixed(1)} KB)`);
+
+    if (!openTabs.includes("__gen__")) openTabs.push("__gen__");
+    activeFile = "__gen__";
+  } catch (e) {
+    log("error", e.message);
+  } finally {
+    compiling = false;
+    render();
+  }
+}
+
+function downloadPdf(url, filename) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+async function downloadCv() {
+  const url = await fetchCvPdf();
+  if (url) downloadPdf(url, "advayth_pashupati_cv.pdf");
+}
+
+function downloadGenerated() {
+  if (generatedBlobUrl) downloadPdf(generatedBlobUrl, `${generatedFilename}.pdf`);
+}
+
+// ─── Syntax highlighting ───
+function highlightLine(line) {
+  const t = line.trim();
+  if (t.startsWith("#") || t.startsWith("//")) return `<span class="syn-comment">${escapeHtml(line)}</span>`;
+  const eq = line.indexOf("=");
+  if (eq === -1) return escapeHtml(line);
+  const key = line.slice(0, eq);
+  const val = line.slice(eq + 1);
+  let valHtml = "";
+  for (let j = 0; j < val.length; j++) {
+    if (val[j] === "[" || val[j] === "]") { valHtml += `<span class="syn-bracket">${val[j]}</span>`; }
+    else if (val[j] === ",") { valHtml += `<span class="syn-bracket">,</span>`; }
+    else {
+      let e = j;
+      while (e < val.length && !"[],".includes(val[e])) e++;
+      const chunk = val.slice(j, e), tc = chunk.trim();
+      if (tc === "true" || tc === "false") valHtml += `<span class="syn-bool">${escapeHtml(chunk)}</span>`;
+      else if (/^\d+$/.test(tc)) valHtml += `<span class="syn-num">${escapeHtml(chunk)}</span>`;
+      else valHtml += `<span class="syn-str">${escapeHtml(chunk)}</span>`;
+      j = e - 1;
+    }
+  }
+  return `<span class="syn-key">${escapeHtml(key)}</span><span class="syn-eq">=</span>${valHtml}`;
+}
+
+// ─── Render ───
+async function render() {
+  // File list
+  const fl = document.getElementById("file-list");
+  fl.innerHTML = Object.keys(files).map(name => {
+    const icon = name.endsWith(".pdf") ? "◆" : "◇";
+    const iconColor = name.endsWith(".pdf") ? "var(--red)" : name === "README.cfg" ? "var(--blue)" : "var(--green)";
+    const canDelete = name !== "cv.pdf" && name !== "README.cfg";
+    const deleteBtn = canDelete ? `<span class="file-delete" onclick="deleteFile('${name}', event)">✕</span>` : "";
+    return `<div class="file-item ${activeFile === name ? 'active' : ''}" onclick="openFile('${name}')">
+      <span style="display:flex;align-items:center;gap:6px"><span class="file-icon" style="color:${iconColor}">${icon}</span>${escapeHtml(name)}</span>
+      ${deleteBtn}
+    </div>`;
+  }).join("");
+
+  // Tags
+  document.getElementById("tag-container").innerHTML = INDUSTRY_TAGS.map(t => `<span class="tag">${t}</span>`).join("");
+
+  // Tabs
+  const tc = document.getElementById("tabs-container");
+  tc.innerHTML = openTabs.map(name => {
+    const label = name === "__gen__" ? `${generatedFilename}.pdf` : name;
+    const icon = (name === "__gen__" || name.endsWith(".pdf")) ? "◆" : "◇";
+    const iconColor = (name === "__gen__" || name.endsWith(".pdf")) ? "var(--red)" : "var(--green)";
+    return `<div class="tab ${activeFile === name ? 'active' : ''}" onclick="activeFile='${name}';render()">
+      <span style="color:${iconColor};font-size:10px">${icon}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis">${escapeHtml(label)}</span>
+      <span class="close" onclick="closeTab('${name}', event)">✕</span>
+    </div>`;
+  }).join("");
+
+  // Tab actions
+  const ta = document.getElementById("tab-actions");
+  let actions = "";
+  if (activeFile === "cv.pdf" || activeFile === "__gen__") actions = "";
+  if (activeFile && files[activeFile]?.type === "cfg") {
+    actions += `<button class="btn btn-run" onclick="compileResume()" ${compiling ? 'disabled' : ''}>▶ Run</button>`;
+  }
+  ta.innerHTML = actions;
+
+  // Content area
+  const content = document.getElementById("content");
+
+  if (activeFile === "__gen__" && generatedBlobUrl) {
+    content.innerHTML = `
+      <div class="pdf-viewer">
+        <div class="pdf-toolbar">
+          <span class="label" style="color:var(--green)">Compiled PDF — ${escapeHtml(generatedFilename)}.pdf</span>
+          <div class="btns">
+            <button class="btn btn-dl" onclick="downloadGenerated()">↓ Download PDF</button>
+          </div>
+        </div>
+        <iframe class="pdf-frame" src="${generatedBlobUrl}#toolbar=1&navpanes=0"></iframe>
+      </div>`;
+  } else if (activeFile === "cv.pdf") {
+    const url = await fetchCvPdf();
+    if (url) {
+      content.innerHTML = `
+        <div class="pdf-viewer">
+          <div class="pdf-toolbar">
+            <span class="label" style="color:var(--dim)">Full CV</span>
+            <div class="btns">
+              <button class="btn btn-dl" onclick="downloadCv()">↓ Download CV</button>
+            </div>
+          </div>
+          <iframe class="pdf-frame" src="${url}#toolbar=1&navpanes=0"></iframe>
+        </div>`;
+    } else {
+      content.innerHTML = `<div class="empty-state">Loading CV PDF...</div>`;
+    }
+  } else if (activeFile && files[activeFile]?.type === "cfg") {
+    const fileContent = files[activeFile].content;
+    const lines = fileContent.split("\n");
+    const lineNums = lines.map((_, i) => `<div>${i + 1}</div>`).join("");
+    const highlighted = lines.map(l => highlightLine(l)).join("\n");
+
+    content.innerHTML = `
+      <div class="editor-wrap">
+        <div class="line-numbers" id="line-nums">${lineNums}</div>
+        <div class="editor-container">
+          <pre class="editor-highlight" id="highlight-layer">${highlighted}</pre>
+          <textarea class="editor-textarea" id="editor-ta" spellcheck="false">${escapeHtml(fileContent)}</textarea>
+        </div>
+      </div>
+      ${compiling ? '<div class="compile-overlay"><div class="spinner"></div><div style="color:var(--green);font-size:13px">Generating PDF...</div></div>' : ''}`;
+
+    const ta2 = document.getElementById("editor-ta");
+    const hl = document.getElementById("highlight-layer");
+    const ln = document.getElementById("line-nums");
+
+    ta2.addEventListener("input", () => {
+      files[activeFile].content = ta2.value;
+      const newLines = ta2.value.split("\n");
+      hl.innerHTML = newLines.map(l => highlightLine(l)).join("\n");
+      ln.innerHTML = newLines.map((_, i) => `<div>${i + 1}</div>`).join("");
+    });
+
+    ta2.addEventListener("scroll", () => {
+      hl.scrollTop = ta2.scrollTop;
+      hl.scrollLeft = ta2.scrollLeft;
+      ln.scrollTop = ta2.scrollTop;
+    });
+
+    ta2.addEventListener("keydown", e => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        compileResume();
+      }
+      // Tab key inserts spaces
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const start = ta2.selectionStart;
+        ta2.value = ta2.value.slice(0, start) + "  " + ta2.value.slice(ta2.selectionEnd);
+        ta2.selectionStart = ta2.selectionEnd = start + 2;
+        ta2.dispatchEvent(new Event("input"));
+      }
+    });
+  } else {
+    content.innerHTML = `<div class="empty-state">Open a file from the sidebar</div>`;
+  }
+
+  renderTerminal();
+}
+
+// ─── Init ───
+log("info", "Resume Generator v3.1 — server-generated PDFs");
+log("hint", "Edit .cfg → ▶ Run (or Ctrl+Enter) → real PDF");
+render();
+</script>
+</body>
+</html>

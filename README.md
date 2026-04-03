@@ -118,6 +118,7 @@ personal-website/
 - The full CV can span multiple pages.
 - Generated resumes still try to stay compact and include as many selected projects as fit.
 - If you want nicer typography, drop `Charter-Regular.ttf`, `Charter-Bold.ttf`, and `Charter-Italic.ttf` into `fonts/`.
+- The frontend now injects the cv JSON as JSON-LD, so crawlers see the resume text without having to run the SPA.
 
 ## Forking This For Yourself
 

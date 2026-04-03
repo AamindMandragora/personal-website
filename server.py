@@ -22,6 +22,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_PDF_PATH = os.path.join(BASE_DIR, "cv.pdf")
 CV_JSON_PATH = os.path.join(BASE_DIR, "cv_data.json")
 FONTS_DIR = os.path.join(BASE_DIR, "fonts")
+INDEX_HTML_PATH = os.path.join(BASE_DIR, "static", "index.html")
 
 # ─── CORS (no flask-cors needed) ───
 def add_cors(response):
@@ -552,9 +553,20 @@ def ensure_cv_pdf():
         print(f"[startup] CV generation failed: {err}")
 
 # ─── Routes ───
+def render_index_html():
+    try:
+        with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
+            html = f.read()
+    except Exception as exc:
+        return jsonify({"error": f"Unable to read index.html: {exc}"}), 500
+    json_ld = json.dumps(get_cv_data(), ensure_ascii=False).replace("</script>", "<\\/script>")
+    script = f'<script type="application/ld+json">{json_ld}</script>'
+    return html.replace("<!--JSON_LD_PLACEHOLDER-->", script)
+
+
 @app.route("/")
 def index():
-    return send_from_directory("static", "index.html")
+    return render_index_html()
 
 @app.route("/api/cv.pdf")
 def get_cv_pdf():

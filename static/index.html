@@ -125,6 +125,8 @@
       <div id="sidebar-tags">
         <div class="tag-label">Industry tags:</div>
         <div id="tag-container"></div>
+        <div class="tag-label" style="margin-top:8px">Project ids:</div>
+        <div id="project-container"></div>
       </div>
     </div>
 
@@ -149,11 +151,13 @@
 <script>
 // ─── State ───
 const INDUSTRY_TAGS = ["quant","systems","ai_ml","software_engineering","formal_methods"];
+const PROJECT_IDS = ["malloc","audio_relay","squishy","lean4game","sigecom","fin_eng"];
 
 const DEFAULT_CFG = `# Resume Configuration
 # Edit filters, press ▶ Run to generate PDF
-# Industry-only filtering
+# Ordered selectors are honored top-to-bottom.
 industry=[quant, systems, ai_ml]
+projects=[malloc, squishy]
 
 # Optional:
 include_projects=true
@@ -162,6 +166,7 @@ max_bullets=3
 `;
 
 const SYSTEMS_CFG = `# Systems-focused
+projects=[malloc, audio_relay]
 industry=[systems, quant]
 include_projects=true
 min_bullets=2
@@ -169,6 +174,7 @@ max_bullets=3
 `;
 
 const AI_CFG = `# AI/ML-focused
+projects=[squishy, malloc]
 industry=[ai_ml, software_engineering, quant]
 include_projects=true
 min_bullets=2
@@ -176,6 +182,7 @@ max_bullets=3
 `;
 
 const FORMAL_CFG = `# Formal Methods focused
+projects=[lean4game, squishy]
 industry=[formal_methods, ai_ml, systems]
 include_projects=true
 min_bullets=2
@@ -198,6 +205,19 @@ const HELP_CFG = `# ════════════════════
 #   software_engineering,
 #   formal_methods
 #
+# projects=[...]
+#   malloc, audio_relay, squishy,
+#   lean4game, sigecom, fin_eng
+#   Explicit projects are added in the
+#   order listed.
+#
+# ORDERING:
+#   If projects comes before industry,
+#   those projects appear first.
+#   If industry comes first, industry
+#   picks fill first, then projects.
+#   Duplicates are automatically removed.
+#
 # include_projects=true|false
 # min_bullets=N
 # max_bullets=N
@@ -213,7 +233,7 @@ let files = {
   "README.cfg": { type: "cfg", content: HELP_CFG },
 };
 let activeFile = "cv.pdf";
-let openTabs = ["cv.pdf", "quant_resume.cfg", "systems_resume.cfg"];
+let openTabs = ["cv.pdf"];
 let terminalLogs = [];
 let compiling = false;
 
@@ -402,6 +422,7 @@ async function render() {
 
   // Tags
   document.getElementById("tag-container").innerHTML = INDUSTRY_TAGS.map(t => `<span class="tag">${t}</span>`).join("");
+  document.getElementById("project-container").innerHTML = PROJECT_IDS.map(t => `<span class="tag">${t}</span>`).join("");
 
   // Tabs
   const tc = document.getElementById("tabs-container");

@@ -6,19 +6,22 @@
   "github": "https://github.com/AamindMandragora/",
   "linkedin": "https://www.linkedin.com/in/advayth-pashupati/",
   "education": {
-    "school": "University of Illinois at Urbana–Champaign",
+    "school": "University of Illinois at Urbana-Champaign",
     "dates": "Aug 2025 -- May 2028",
-    "degree": "B.S. in Mathematics (Technical GPA: 4.0)",
+    "degree": "B.S. in Mathematics (Technical GPA: 4.0), James Scholar",
     "coursework": [
       "System Programming",
       "Computer Architecture",
       "Data Structures",
+      "Discrete Structures",
       "Abstract Algebra",
       "Number Theory",
       "Linear Algebra",
-      "Statistics & Probability"
-    ],
-    "honors": "James Scholar in the College of Liberal Arts and Sciences"
+      "Differential Equations",
+      "Statistics & Probability",
+      "Computational Science",
+      "Electronics"
+    ]
   },
   "awards": [
     "American Invitational Mathematics Exam (AIME) Qualifier",
@@ -51,7 +54,7 @@
     {
       "id": "focal",
       "name": "FOCAL Lab",
-      "subtitle": "Formal Methods of Computing \\& Verifiable Constrained LLM Decoding",
+      "subtitle": "Formal Verification \\& Verified LLM Decoding Research",
       "dates": "Sept 2025 -- Present",
       "tags": [
         "formal_verification",
@@ -70,7 +73,7 @@
     {
       "id": "abbvie",
       "name": "AbbVie",
-      "subtitle": "Business Technology Solutions Intern",
+      "subtitle": "Generative AI Platform \\& Workflow Automation Intern",
       "dates": "June 2024 -- Aug 2024",
       "tags": [
         "swe",
@@ -87,8 +90,8 @@
   "projects": [
     {
       "id": "malloc",
-      "name": "High-Performance Memory Allocator",
-      "subtitle": "Custom TLSF Allocator in C",
+      "name": "TLSF Malloc",
+      "subtitle": "High-Performance Memory Allocation",
       "dates": "Feb 2026 -- March 2026",
       "tags": [
         "systems",
@@ -103,9 +106,27 @@
       ]
     },
     {
+      "id": "audio_relay",
+      "name": "Asynchronous Audio Relay",
+      "subtitle": "Low-Latency Concurrent Systems \\& Networking",
+      "dates": "Jan 2026 -- Present",
+      "tags": [
+        "systems",
+        "c",
+        "cpp",
+        "networking",
+        "quant_dev"
+      ],
+      "bullets": [
+        "Developed a multithreaded TCP server in C (Linux/Raspberry Pi) to serve as an asynchronous store-and-forward audio relay for multiple concurrent clients.",
+        "Architected a custom client-server protocol using POSIX sockets and pthreads to efficiently manage connection lifecycles and concurrent message delivery.",
+        "Engineered a lock-free ring buffer for concurrent audio ingestion, drastically reducing synchronization overhead and improving system latency."
+      ]
+    },
+    {
       "id": "squishy",
       "name": "Squishy.ai",
-      "subtitle": "Text-to-Physics Soft Robotics Simulation Platform",
+      "subtitle": "LLM-Driven Soft Robotics Simulation Platform",
       "dates": "Jan 2026 -- Feb 2026",
       "tags": [
         "swe",
@@ -122,40 +143,22 @@
     {
       "id": "lean4game",
       "name": "Abstract Algebra, the Game",
-      "subtitle": "Interactive Lean4 Proof Game",
+      "subtitle": "Interactive Theorem Proving for Abstract Algebra",
       "dates": "March 2026 -- Present",
       "tags": [
         "formal_verification",
         "math"
       ],
       "bullets": [
-        "Developing an interactive Lean4 proof game hosted on adam.math.hhu.de to teach abstract algebra via guided theorem proving (developed for the AI for Math Summer Fellowship).",
-        "Designed and shipped World 1 (Group World, 12 levels), implementing a notation-agnostic MyGroup typeclass to cover group axioms, identity uniqueness, and cancellation laws.",
-        "Completed World 2 (Reflection World) focusing on abelian groups, subgroups, and normal groups, while actively architecting Worlds 3--5 for advanced topics like homomorphisms and group actions."
-      ]
-    },
-    {
-      "id": "audio_relay",
-      "name": "Asynchronous Audio Relay System",
-      "subtitle": "Concurrent Networking in C",
-      "dates": "Jan 2026 -- Present",
-      "tags": [
-        "systems",
-        "c",
-        "cpp",
-        "networking",
-        "quant_dev"
-      ],
-      "bullets": [
-        "Developed a multithreaded TCP server in C (Linux/Raspberry Pi) to serve as an asynchronous store-and-forward audio relay for multiple concurrent clients.",
-        "Architected a custom client--server protocol using POSIX sockets and pthreads to efficiently manage connection lifecycles and concurrent message delivery.",
-        "Engineered a lock-free ring buffer for concurrent audio ingestion, drastically reducing synchronization overhead and improving system latency."
+        "Developing an interactive Lean4 proof game hosted on adam.math.hhu.de to teach abstract algebra through guided theorem proving, with released content covering groups, abelian groups, subgroups, and normal groups.",
+        "Implemented a notation-agnostic `MyGroup` typeclass and supporting level infrastructure in Lean4 to encode group axioms, identity uniqueness, cancellation laws, and reflection-style proof progression.",
+        "Architecting Worlds 3-5 to extend the game into advanced topics such as homomorphisms, quotient structures, and group actions while preserving a smooth pedagogical progression."
       ]
     },
     {
       "id": "sigecom",
       "name": "SIGEcom",
-      "subtitle": "Trend-Based Algorithmic Trading \\& Game Theory",
+      "subtitle": "Systematic Trading Strategy Research \\& Simulation",
       "dates": "Sept 2025 -- Dec 2025",
       "tags": [
         "quant_dev",
@@ -172,7 +175,7 @@
     {
       "id": "fin_eng",
       "name": "Financial Engineering",
-      "subtitle": "Options Theory \\& Neural Network Applications",
+      "subtitle": "Quantitative Options Pricing \\& ML-Based Volatility Modeling",
       "dates": "Sept 2025 -- Dec 2025",
       "tags": [
         "quant_dev",
@@ -181,7 +184,7 @@
         "ml"
       ],
       "bullets": [
-        "Implemented the Cox--Ross--Rubinstein binomial model in Python to price European and American options, verifying convergence toward Black--Scholes benchmark values.",
+        "Implemented the Cox-Ross-Rubinstein binomial model in Python to price European and American options, verifying convergence toward Black-Scholes benchmark values.",
         "Leveraged neural network de-Americanization techniques to convert market American option prices into equivalent European prices, enabling accurate implied volatility computation.",
         "Analyzed early exercise boundaries and computational efficiency across various market regimes to optimize pricing accuracy."
       ]

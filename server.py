@@ -10,7 +10,6 @@ Endpoints:
 import os, json, copy
 from flask import Flask, request, send_file, jsonify, send_from_directory
 from io import BytesIO
-from dotenv import load_dotenv
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
@@ -23,8 +22,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_PDF_PATH = os.path.join(BASE_DIR, "cv.pdf")
 CV_JSON_PATH = os.path.join(BASE_DIR, "cv_data.json")
 FONTS_DIR = os.path.join(BASE_DIR, "fonts")
-
-load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # ─── CORS (no flask-cors needed) ───
 def add_cors(response):
@@ -39,7 +36,10 @@ def load_cv_data():
     with open(CV_JSON_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
-CV = load_cv_data()
+
+def get_cv_data():
+    """Always read the latest CV source data from disk."""
+    return load_cv_data()
 
 # Layout constants tuned to 1 cm page margins.
 CM = inch / 2.54
@@ -125,6 +125,7 @@ INDUSTRY_ALIASES = {
 # ─── Config parsing ───
 def parse_config_text(text):
     config = {}
+    selector_steps = []
     for line in text.strip().split("\n"):
         line = line.strip()
         if not line or line.startswith("#") or line.startswith("//"):
@@ -138,30 +139,99 @@ def parse_config_text(text):
             val = [v.strip().strip("'\"").lower() for v in val[1:-1].split(",") if v.strip()]
         else:
             val = val.strip("'\"")
+        if key in ("industry", "industries"):
+            values = val if isinstance(val, list) else [str(val).lower()]
+            selector_steps.append({"kind": "industry", "values": values})
+            existing = config.get("industry", [])
+            if isinstance(existing, str):
+                existing = [existing]
+            config["industry"] = existing + values
+            continue
+        if key in ("project", "projects"):
+            values = val if isinstance(val, list) else [str(val).lower()]
+            selector_steps.append({"kind": "projects", "values": values})
+            existing = config.get("projects", [])
+            if isinstance(existing, str):
+                existing = [existing]
+            config["projects"] = existing + values
+            continue
         config[key] = val
+    if selector_steps:
+        config["_selector_steps"] = selector_steps
     return config
 
 # ─── Filtering ───
 def filter_cv(config):
-    data = copy.deepcopy(CV)
+    source_cv = get_cv_data()
+    data = copy.deepcopy(source_cv)
     industries = config.get("industry") or config.get("industries")
+    selected_projects = config.get("projects") or config.get("project")
     if isinstance(industries, str):
         industries = [industries]
+    if isinstance(selected_projects, str):
+        selected_projects = [selected_projects]
 
     resolved_industries = []
     if industries:
         for i in industries:
             resolved_industries.append(str(i).strip().lower())
 
+    resolved_projects = []
+    if selected_projects:
+        for project in selected_projects:
+            resolved_projects.append(str(project).strip().lower())
+
     expanded_tags = set()
     for key in resolved_industries:
         canonical = INDUSTRY_ALIASES.get(key, key)
         expanded_tags |= INDUSTRY_TAGS.get(canonical, {key})
 
+    project_lookup = {}
+    for item in source_cv.get("projects", []):
+        pid = str(item.get("id", "")).strip().lower()
+        pname = str(item.get("name", "")).strip().lower()
+        if pid:
+            project_lookup[pid] = item
+        if pname:
+            project_lookup[pname] = item
+
+    def project_matches_tags(item, tags):
+        return any(tag in tags for tag in item.get("tags", []))
+
+    def select_projects_by_steps():
+        steps = config.get("_selector_steps", [])
+        if not steps:
+            return None
+
+        ordered = []
+        seen = set()
+
+        def add_item(item):
+            pid = str(item.get("id", "")).strip().lower()
+            if not pid or pid in seen:
+                return
+            ordered.append(copy.deepcopy(item))
+            seen.add(pid)
+
+        for step in steps:
+            if step["kind"] == "projects":
+                for project_key in step["values"]:
+                    item = project_lookup.get(project_key)
+                    if item:
+                        add_item(item)
+            elif step["kind"] == "industry":
+                for industry_key in step["values"]:
+                    canonical = INDUSTRY_ALIASES.get(industry_key, industry_key)
+                    tags = INDUSTRY_TAGS.get(canonical, {industry_key})
+                    for item in source_cv.get("projects", []):
+                        if project_matches_tags(item, tags):
+                            add_item(item)
+        return ordered
+
     def filter_by_tags(items):
         if not expanded_tags:
             return items
-        return [it for it in items if any(t in expanded_tags for t in it["tags"])]
+        return [it for it in items if project_matches_tags(it, expanded_tags)]
 
     def order_projects_for_resume(items):
         # Order by industry priority first, then preserve canonical JSON order
@@ -178,7 +248,7 @@ def filter_cv(config):
                 pid = str(it.get("id", "")).lower()
                 if pid in seen:
                     continue
-                if any(t in tags for t in it.get("tags", [])):
+                if project_matches_tags(it, tags):
                     ordered.append(it)
                     seen.add(pid)
 
@@ -189,8 +259,12 @@ def filter_cv(config):
                 ordered.append(it)
         return ordered
 
-    data["projects"] = filter_by_tags(data["projects"])
-    data["projects"] = order_projects_for_resume(data["projects"])
+    selected_by_steps = select_projects_by_steps()
+    if selected_by_steps is not None:
+        data["projects"] = selected_by_steps
+    else:
+        data["projects"] = filter_by_tags(data["projects"])
+        data["projects"] = order_projects_for_resume(data["projects"])
 
     include_projects = str(config.get("include_projects", "true")).lower() != "false"
     if not include_projects:
@@ -224,7 +298,7 @@ def filter_cv(config):
     # Avoid sparse/empty resumes unless explicitly allowed.
     allow_empty = str(config.get("allow_empty", "false")).lower() == "true"
     if not allow_empty and not data["projects"]:
-        data["projects"] = copy.deepcopy(CV.get("projects", []))[:3]
+        data["projects"] = copy.deepcopy(source_cv.get("projects", []))[:3]
         if max_b is not None:
             data["projects"] = [{**it, "bullets": it["bullets"][:max_b]} for it in data["projects"]]
 
@@ -258,6 +332,19 @@ def draw_line(c, text, x, y, font_name="Helvetica", font_size=10, max_width=None
         y -= line_gap
     return y
 
+
+def draw_bulleted_line(c, text, x, y, font_name="Helvetica", font_size=10, max_width=None, line_gap=12):
+    bullet_x = x + 6
+    text_x = x + 14
+    available_width = None if max_width is None else max_width - (text_x - x)
+    lines = wrap_text(c, text, font_name, font_size, available_width)
+    c.setFont(font_name, font_size)
+    c.drawString(bullet_x, y, u"\u2022")
+    for line in lines:
+        c.drawString(text_x, y, line)
+        y -= line_gap
+    return y
+
 def draw_section_header(c, title, x, y):
     c.setFont(FONT_BOLD, 14)
     c.drawString(x, y, title)
@@ -287,7 +374,7 @@ def _item_with_bullets(item, bullet_count):
     return {**item, "bullets": item.get("bullets", [])[:bullet_count]}
 
 
-def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_bullets=None):
+def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_bullets=None, keep_entry_together=True):
     if not items:
         return y, 0
     left = LEFT
@@ -318,11 +405,16 @@ def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_
                     needed = trial_needed
                     break
 
-        if (y - needed) < BOTTOM:
+        if keep_entry_together:
+            if (y - needed) < BOTTOM:
+                if not allow_new_page:
+                    break
+                y = maybe_new_page(c, y, needed + sv(10))
+                candidate = it
+        elif (y - sv(28)) < BOTTOM:
             if not allow_new_page:
                 break
-            y = maybe_new_page(c, y, needed + sv(10))
-            candidate = it
+            y = maybe_new_page(c, y, sv(28))
         c.setFont(FONT_BOLD, 10.6)
         name_text = normalize_text(candidate["name"])
         c.drawString(left, y, name_text)
@@ -350,7 +442,7 @@ def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_
         drawn += 1
     return y, drawn
 
-def generate_pdf(data, title="Resume"):
+def generate_pdf(data, title="Resume", include_all_projects=False):
     """Generate ATS-friendly PDF bytes with LaTeX-like visual layout."""
     try:
         buf = BytesIO()
@@ -396,8 +488,16 @@ def generate_pdf(data, title="Resume"):
         c.drawString(LEFT, y, normalize_text(edu["degree"]))
         y -= sv(16)
 
-        y = draw_line(c, f"• Relevant Coursework: {', '.join(normalize_text(x) for x in edu['coursework'])}", LEFT + 6, y, FONT_REGULAR, 10, WIDTH - 6, sv(16))
-        y = draw_line(c, f"• Honors: {normalize_text(edu['honors'])}", LEFT + 6, y, FONT_REGULAR, 10, WIDTH - 6, sv(16))
+        y = draw_bulleted_line(
+            c,
+            f"Relevant Coursework: {', '.join(normalize_text(x) for x in edu['coursework'])}",
+            LEFT,
+            y,
+            FONT_REGULAR,
+            10,
+            WIDTH,
+            sv(16),
+        )
         y -= sv(12)
 
         y = draw_section_header(c, "Technical Skills and Awards", LEFT, y)
@@ -410,7 +510,7 @@ def generate_pdf(data, title="Resume"):
         min_b = bounds.get("min")
         max_b = bounds.get("max")
 
-        # Always include all research/experience; projects fill remaining space.
+        # Full CVs can spill projects onto later pages; tailored resumes stay compact.
         y, _ = draw_entries(c, y, "Research", data.get("research", []), allow_new_page=True, max_bullets=max_b)
         y, _ = draw_entries(c, y, "Experience", data.get("experience", []), allow_new_page=True, max_bullets=max_b)
         y, _ = draw_entries(
@@ -418,9 +518,10 @@ def generate_pdf(data, title="Resume"):
             y,
             "Technical Projects",
             data.get("projects", []),
-            allow_new_page=False,
+            allow_new_page=include_all_projects,
             min_bullets=min_b,
             max_bullets=max_b,
+            keep_entry_together=not include_all_projects,
         )
 
         c.save()
@@ -430,11 +531,19 @@ def generate_pdf(data, title="Resume"):
         return None, str(e)
 
 # ─── Pre-compile CV on startup ───
+def cv_pdf_is_stale():
+    if not os.path.exists(CV_PDF_PATH):
+        return True
+    if not os.path.exists(CV_JSON_PATH):
+        return False
+    return os.path.getmtime(CV_JSON_PATH) > os.path.getmtime(CV_PDF_PATH)
+
+
 def ensure_cv_pdf():
-    if os.path.exists(CV_PDF_PATH):
+    if not cv_pdf_is_stale():
         return
-    print("[startup] Generating CV PDF...")
-    pdf_bytes, err = generate_pdf(CV, "CV")
+    print("[startup] Generating CV PDF from cv_data.json...")
+    pdf_bytes, err = generate_pdf(get_cv_data(), "CV", include_all_projects=True)
     if pdf_bytes:
         with open(CV_PDF_PATH, "wb") as f:
             f.write(pdf_bytes)
@@ -449,8 +558,7 @@ def index():
 
 @app.route("/api/cv.pdf")
 def get_cv_pdf():
-    if not os.path.exists(CV_PDF_PATH):
-        ensure_cv_pdf()
+    ensure_cv_pdf()
     if os.path.exists(CV_PDF_PATH):
         return send_file(CV_PDF_PATH, mimetype="application/pdf",
                          download_name="advayth_pashupati_cv.pdf")
@@ -507,6 +615,6 @@ def health():
 if __name__ == "__main__":
     register_charter_fonts()
     ensure_cv_pdf()
-    port = int(os.environ.get("PORT", 5000))
+    port = 5000
     print(f"[server] Starting on http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=False)

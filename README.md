@@ -109,6 +109,7 @@ personal-website/
 | `/api/cv.pdf` | GET | Returns the full CV PDF |
 | `/api/compile` | POST | Accepts `{ config, filename }` and returns a generated resume PDF |
 | `/api/compile-raw` | POST | Accepts raw `.cfg` text and returns a generated resume PDF |
+| `/api/data` | GET | Publishes `cv_data.json` so bots and screen readers can ingest the structured content |
 | `/api/health` | GET | Health check |
 
 ## Notes

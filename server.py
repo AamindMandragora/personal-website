@@ -564,6 +564,16 @@ def get_cv_pdf():
                          download_name="advayth_pashupati_cv.pdf")
     return jsonify({"error": "CV PDF not available"}), 500
 
+
+@app.route("/api/data")
+def get_cv_json():
+    """Expose the latest cv_data.json to automated agents."""
+    try:
+        data = get_cv_data()
+        return jsonify({"source": "cv_data.json", "updated": os.path.getmtime(CV_JSON_PATH), "data": data})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
 @app.route("/api/compile", methods=["POST", "OPTIONS"])
 def compile_resume():
     if request.method == "OPTIONS":

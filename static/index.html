@@ -161,7 +161,7 @@ projects=[malloc, squishy]
 
 # Optional:
 include_projects=true
-min_bullets=2
+min_bullets=1
 max_bullets=3
 `;
 
@@ -169,7 +169,7 @@ const SYSTEMS_CFG = `# Systems-focused
 projects=[malloc, audio_relay]
 industry=[systems, quant]
 include_projects=true
-min_bullets=2
+min_bullets=1
 max_bullets=3
 `;
 
@@ -177,7 +177,7 @@ const AI_CFG = `# AI/ML-focused
 projects=[squishy, malloc]
 industry=[ai_ml, software_engineering, quant]
 include_projects=true
-min_bullets=2
+min_bullets=1
 max_bullets=3
 `;
 
@@ -185,7 +185,7 @@ const FORMAL_CFG = `# Formal Methods focused
 projects=[lean4game, squishy]
 industry=[formal_methods, ai_ml, systems]
 include_projects=true
-min_bullets=2
+min_bullets=1
 max_bullets=3
 `;
 
@@ -326,6 +326,7 @@ async function fetchCvPdf() {
 async function compileResume() {
   const file = files[activeFile];
   if (!file || file.type !== "cfg") { log("error", "No .cfg file active."); return; }
+  if (activeFile === "README.cfg") { log("warn", "README.cfg is reference-only."); return; }
   const configText = file.content;
   const baseName = activeFile.replace(".cfg", "");
 
@@ -441,7 +442,7 @@ async function render() {
   const ta = document.getElementById("tab-actions");
   let actions = "";
   if (activeFile === "cv.pdf" || activeFile === "__gen__") actions = "";
-  if (activeFile && files[activeFile]?.type === "cfg") {
+  if (activeFile && files[activeFile]?.type === "cfg" && activeFile !== "README.cfg") {
     actions += `<button class="btn btn-run" onclick="compileResume()" ${compiling ? 'disabled' : ''}>▶ Run</button>`;
   }
   ta.innerHTML = actions;
@@ -512,7 +513,7 @@ async function render() {
     ta2.addEventListener("keydown", e => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        compileResume();
+        if (activeFile !== "README.cfg") compileResume();
       }
       // Tab key inserts spaces
       if (e.key === "Tab") {

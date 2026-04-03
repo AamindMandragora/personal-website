@@ -51,7 +51,7 @@ WIDTH = RIGHT - LEFT
 FONT_REGULAR = "Times-Roman"
 FONT_BOLD = "Times-Bold"
 FONT_ITALIC = "Times-Italic"
-SPACING_SCALE = 0.9
+SPACING_SCALE = 0.85
 
 
 def sv(value):

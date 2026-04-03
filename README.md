@@ -46,7 +46,7 @@ projects=[malloc, squishy]
 industry=[systems, ai_ml]
 
 include_projects=true
-min_bullets=2
+min_bullets=1
 max_bullets=3
 ```
 

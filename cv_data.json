@@ -8,19 +8,9 @@
   "education": {
     "school": "University of Illinois at Urbana-Champaign",
     "dates": "Aug 2025 -- May 2028",
-    "degree": "B.S. in Mathematics (Technical GPA: 4.0), James Scholar",
+    "degree": "B.S. in Mathematics (Technical GPA: 4.0, Overall GPA: 3.98); James Scholar in the College of LAS",
     "coursework": [
-      "System Programming",
-      "Computer Architecture",
-      "Data Structures",
-      "Discrete Structures",
-      "Abstract Algebra",
-      "Number Theory",
-      "Linear Algebra",
-      "Differential Equations",
-      "Statistics & Probability",
-      "Computational Science",
-      "Electronics"
+      "Abstract Algebra", "Number Theory", "Abstract Linear Algebra", "Discrete Structures", "Statistics & Probability", "Differential Equations", "Data Structures", "Computer Architecture", "System Programming", "Computational Science"
     ]
   },
   "awards": [
@@ -29,16 +19,7 @@
     "Quiz Bowl Nationals"
   ],
   "languages": [
-    "C++",
-    "C",
-    "Python",
-    "Lean4",
-    "Verilog",
-    "Dafny",
-    "Rust",
-    "SQL",
-    "React",
-    "TypeScript"
+    "Lean4", "Dafny", "Python", "C++", "C", "Verilog", "Rust", "SQL", "React", "TypeScript"
   ],
   "tools": [
     "Git",
@@ -63,9 +44,9 @@
         "python"
       ],
       "bullets": [
-        "Researching verified generation of custom constrained decoding algorithms (CSDs) designed to effectively provide syntactic and semantic correctness.",
-        "Implementing Dafny-based contracts to ensure LLM-generated CSDs provably satisfy conditions necessary for valid generation (eventual termination, grammatical correctness).",
-        "Evaluating the framework's improvement of several HuggingFace models (Qwen, Mistral, Llama 3) on benchmarks like GSM-Symbolic and FOLIO against other attempted solutions (CRANE, DINGO)."
+        "Researching verified generation of custom constrained decoding strategies (CSDs) that enforce syntactic and semantic correctness on LLM outputs, synthesizing **40+** CSDs to date.",
+        "Authoring **500+** lines of verified **Dafny** specifications across **15+** helper functions, formally proving that generated CSDs satisfy termination and grammatical correctness invariants.",
+        "Evaluating the framework on HuggingFace models (Qwen, Mistral, Llama 3) across **GSM-Symbolic** and **PDDL** benchmarks, comparing against CRANE and DINGO baselines."
       ]
     }
   ],
@@ -82,17 +63,27 @@
         "ml"
       ],
       "bullets": [
-        "Built a Streamlit UI enabling CRUD operations for JSON configuration files used by an internal Generative AI API and migrated 300+ prompt templates into a PostgreSQL database.",
-        "Designed a modular configuration system enabling dynamic pipeline updates without code changes, improving iteration speed for internal AI workflows."
+        "Built a **Streamlit** UI enabling CRUD operations for **300+** JSON configuration files used by an internal Generative AI API and migrated **300+** prompt templates into a **PostgreSQL** database.",
+        "Designed a modular configuration system enabling dynamic pipeline updates without code changes, reducing reconfiguration time from **hours to minutes** for internal AI workflows."
       ]
     }
   ],
   "projects": [
     {
+      "id": "lean4game",
+      "name": "Abstract Algebra, the Game",
+      "subtitle": "Interactive Lean4 Proof Game",
+      "tags": ["formal_verification", "math", "lean4", "pedagogy"],
+      "bullets": [
+        "Developing an interactive **Lean4** proof game hosted on the adam.math.hhu.de Lean Game Server comprising **2 worlds** and **24 levels** that teach group theory through guided theorem proving, covering groups, abelian groups, subgroups, and normal subgroups.",
+        "Formalized **1,200+** lines of Lean4 encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, trivial/entire subgroups, subgroup intersection, and the one-step subgroup test, building a notation-agnostic `MyGroup` typeclass from axioms.",
+        "Designed progressive level sequences that decompose **formalized proofs** into **structured learning blocks**, with layered hints and narrative annotations guiding players from basic group axioms to advanced subgroup characterizations."
+      ]
+    },
+    {
       "id": "malloc",
-      "name": "TLSF Malloc",
+      "name": "Two-Level Segregated Fit Malloc",
       "subtitle": "High-Performance Memory Allocation",
-      "dates": "Feb 2026 -- March 2026",
       "tags": [
         "systems",
         "c",
@@ -100,16 +91,15 @@
         "quant_dev"
       ],
       "bullets": [
-        "Developed a custom memory allocator (malloc, calloc, realloc, free) in pure C, outperforming highly optimized glibc by 1\\% and placing 3rd overall on the competitive class leaderboard.",
-        "Designed a two-level segregated fit (TLSF) allocator utilizing 128-bit bitmask free-list indexing, localized arena allocation, and a deferred-free cache to optimize repeated alloc/free patterns.",
-        "Engineered aggressive block-level optimizations, including compressed 32-bit pointers, boundary-tag coalescing with footer elision, and flag-encoded headers for O(1) neighbor status verification."
+        "Developed a custom memory allocator (malloc, calloc, realloc, free) in pure **C**, outperforming glibc by up to **100\\%** in throughput and achieving over **300\\%** memory reduction on select test cases, placing **3rd out of ~300** students.",
+        "Designed a **two-level segregated fit** (TLSF) allocator utilizing **128-bit** bitmask free-list indexing, localized arena allocation, and a deferred-free cache to optimize repeated alloc/free patterns.",
+        "Engineered aggressive block-level optimizations, including compressed **32-bit** pointers, boundary-tag coalescing with footer elision, and flag-encoded headers for **O(1)** neighbor status verification."
       ]
     },
     {
       "id": "audio_relay",
       "name": "Asynchronous Audio Relay",
       "subtitle": "Low-Latency Concurrent Systems \\& Networking",
-      "dates": "Jan 2026 -- Present",
       "tags": [
         "systems",
         "c",
@@ -118,16 +108,15 @@
         "quant_dev"
       ],
       "bullets": [
-        "Developed a multithreaded TCP server in C (Linux/Raspberry Pi) to serve as an asynchronous store-and-forward audio relay for multiple concurrent clients.",
-        "Architected a custom client-server protocol using POSIX sockets and pthreads to efficiently manage connection lifecycles and concurrent message delivery.",
-        "Engineered a lock-free ring buffer for concurrent audio ingestion, drastically reducing synchronization overhead and improving system latency."
+        "Developed a multithreaded UDP server in **C** (Linux/Raspberry Pi) to serve as an asynchronous store-and-forward audio relay.",
+        "Architected a custom client-server protocol using **POSIX sockets** and **pthreads** to efficiently manage connection lifecycles and message delivery.",
+        "Engineered a **lock-free** ring buffer for concurrent audio ingestion, reducing synchronization overhead and improving system latency over mutex-based alternatives."
       ]
     },
     {
       "id": "squishy",
       "name": "Squishy.ai",
       "subtitle": "LLM-Driven Soft Robotics Simulation Platform",
-      "dates": "Jan 2026 -- Feb 2026",
       "tags": [
         "swe",
         "ml",
@@ -135,31 +124,15 @@
         "hackathon"
       ],
       "bullets": [
-        "Built a full-stack platform that translates natural language into executable soft robotics physics simulations via PyElastica (Cosserat rod theory), winning the Keywords AI (YC W24) Hackathon.",
-        "Architected a high-performance FastAPI backend utilizing Numba JIT compilation, coupled with a headless Matplotlib and FFmpeg rendering pipeline for seamless GIF generation.",
-        "Developed an interactive React/Vite frontend featuring real-time simulation visualization and LLM-routed code generation through the Keywords AI gateway."
-      ]
-    },
-    {
-      "id": "lean4game",
-      "name": "Abstract Algebra, the Game",
-      "subtitle": "Interactive Theorem Proving for Abstract Algebra",
-      "dates": "March 2026 -- Present",
-      "tags": [
-        "formal_verification",
-        "math"
-      ],
-      "bullets": [
-        "Developing an interactive Lean4 proof game hosted on adam.math.hhu.de to teach abstract algebra through guided theorem proving, with released content covering groups, abelian groups, subgroups, and normal groups.",
-        "Implemented a notation-agnostic `MyGroup` typeclass and supporting level infrastructure in Lean4 to encode group axioms, identity uniqueness, cancellation laws, and reflection-style proof progression.",
-        "Architecting Worlds 3-5 to extend the game into advanced topics such as homomorphisms, quotient structures, and group actions while preserving a smooth pedagogical progression."
+        "Built a full-stack platform that translates natural language into executable soft robotics physics simulations via PyElastica (Cosserat rod theory), placing **3rd** on the TRAE track among **200+** participants.",
+        "Architected a high-performance **FastAPI** backend utilizing Numba JIT compilation, coupled with a headless Matplotlib and FFmpeg rendering pipeline for end-to-end simulation generation in **under 20 seconds**.",
+        "Developed an interactive **React/Vite** frontend featuring real-time simulation visualization and LLM-routed code generation through the Keywords AI gateway."
       ]
     },
     {
       "id": "sigecom",
       "name": "SIGEcom",
       "subtitle": "Systematic Trading Strategy Research \\& Simulation",
-      "dates": "Sept 2025 -- Dec 2025",
       "tags": [
         "quant_dev",
         "python",
@@ -167,16 +140,15 @@
         "finance"
       ],
       "bullets": [
-        "Designed, backtested, and deployed multi-asset algorithmic trading strategies in Python, utilizing SMA, EMA+RSI, MACD, and statistical arbitrage approaches.",
-        "Integrated custom strategies into a live simulation framework to seamlessly trade real-time cryptocurrency and FX market data.",
-        "Achieved positive PnL across a diverse portfolio of assets, including BTC, ETH, SOL, INR, ZAR, and JPY."
+        "Designed, backtested, and deployed **multi-asset algorithmic trading strategies** in Python, utilizing SMA, EMA+RSI, MACD, and statistical arbitrage approaches across **6 symbols**.",
+        "Integrated custom strategies into a live simulation framework, executing **40+ trades** over a one-week evaluation period on real-time cryptocurrency and FX market data.",
+        "Achieved **positive PnL** across a diverse portfolio including BTC, ETH, SOL, INR, ZAR, and JPY."
       ]
     },
     {
       "id": "fin_eng",
       "name": "Financial Engineering",
       "subtitle": "Quantitative Options Pricing \\& ML-Based Volatility Modeling",
-      "dates": "Sept 2025 -- Dec 2025",
       "tags": [
         "quant_dev",
         "python",
@@ -184,9 +156,9 @@
         "ml"
       ],
       "bullets": [
-        "Implemented the Cox-Ross-Rubinstein binomial model in Python to price European and American options, verifying convergence toward Black-Scholes benchmark values.",
-        "Leveraged neural network de-Americanization techniques to convert market American option prices into equivalent European prices, enabling accurate implied volatility computation.",
-        "Analyzed early exercise boundaries and computational efficiency across various market regimes to optimize pricing accuracy."
+        "Implemented the **Cox-Ross-Rubinstein** binomial model in Python to price European and American options, verifying convergence toward Black-Scholes benchmark values.",
+        "Leveraged **neural network de-Americanization** techniques to convert market American option prices into equivalent European prices, enabling **accurate implied volatility** computation.",
+        "Analyzed **early exercise boundaries** and computational efficiency across various market regimes to optimize pricing accuracy."
       ]
     }
   ]

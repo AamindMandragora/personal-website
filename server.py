@@ -7,7 +7,7 @@ Endpoints:
   POST /api/compile          → accepts JSON config body, returns a filtered resume PDF
   POST /api/compile-raw      → accepts raw .cfg text body, returns a filtered resume PDF
 """
-import os, json, copy
+import os, json, copy, re
 from flask import Flask, request, send_file, jsonify, send_from_directory
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
@@ -105,7 +105,7 @@ INDUSTRY_TAGS = {
     "systems": {"systems", "networking", "hardware"},
     "ai_ml": {"ml", "swe"},
     "software_engineering": {"swe", "ml"},
-    "formal_methods": {"formal_verification", "math"},
+    "formal_methods": {"formal_verification", "math", "lean4", "dafny", "pedagogy"},
 }
 
 INDUSTRY_ALIASES = {
@@ -120,6 +120,9 @@ INDUSTRY_ALIASES = {
     "swe": "software_engineering",
     "formal_verification": "formal_methods",
     "math": "formal_methods",
+    "lean4": "formal_methods",
+    "dafny": "formal_methods",
+    "pedagogy": "formal_methods",
     "hackathon": "software_engineering",
 }
 
@@ -318,6 +321,9 @@ def filter_cv(config, *, force_include_all_projects=False):
     data["_bullet_bounds"] = {"min": min_b, "max": max_b}
     return data
 
+WHITESPACE_PATTERN = re.compile(r"(\s+)")
+
+
 def wrap_text(c, text, font_name, font_size, max_width):
     words = normalize_text(text).split()
     if not words:
@@ -334,6 +340,44 @@ def wrap_text(c, text, font_name, font_size, max_width):
     lines.append(current)
     return lines
 
+
+def wrap_bolded_lines(c, text, font_size, max_width):
+    """Wrap text containing **bold** markers into lines with formatting flags."""
+    normalized = normalize_text(text)
+    tokens = []
+    bold = False
+    for part in normalized.split("**"):
+        if part:
+            for chunk in WHITESPACE_PATTERN.split(part):
+                if not chunk:
+                    continue
+                tokens.append((chunk, bold))
+        bold = not bold
+    if not tokens:
+        return [[(" ", False)]]
+
+    lines = []
+    current = []
+    current_width = 0.0
+    for token, is_bold in tokens:
+        font_name = FONT_BOLD if is_bold else FONT_REGULAR
+        token_width = c.stringWidth(token, font_name, font_size)
+        if current and current_width + token_width > max_width:
+            lines.append(current)
+            current = []
+            current_width = 0.0
+            if token.isspace():
+                continue
+        if not current and token.isspace():
+            continue
+        current.append((token, is_bold))
+        current_width += token_width
+    if current:
+        lines.append(current)
+    if not lines:
+        lines.append([])
+    return lines
+
 def draw_line(c, text, x, y, font_name="Helvetica", font_size=10, max_width=None, line_gap=12):
     c.setFont(font_name, font_size)
     if max_width is None:
@@ -342,6 +386,22 @@ def draw_line(c, text, x, y, font_name="Helvetica", font_size=10, max_width=None
     lines = wrap_text(c, text, font_name, font_size, max_width)
     for line in lines:
         c.drawString(x, y, line)
+        y -= line_gap
+    return y
+
+
+def draw_labelled_line(c, label, text, x, y, font_name=FONT_REGULAR, font_size=10, max_width=None, line_gap=12):
+    label_text = f"{label}: "
+    c.setFont(FONT_BOLD, font_size)
+    c.drawString(x, y, label_text)
+    text_x = x + c.stringWidth(label_text, FONT_BOLD, font_size)
+    if max_width is None:
+        max_width = WIDTH
+    available_width = max_width - (text_x - x)
+    c.setFont(font_name, font_size)
+    lines = wrap_text(c, text, font_name, font_size, available_width)
+    for line in lines:
+        c.drawString(text_x, y, line)
         y -= line_gap
     return y
 
@@ -438,18 +498,26 @@ def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_
         c.drawString(name_end + 1, y, ", ")
         c.setFont(FONT_ITALIC, 10.6)
         c.drawString(name_end + 8, y, subtitle)
-        c.setFont(FONT_REGULAR, 10.6)
-        c.drawRightString(right, y, normalize_text(candidate["dates"]))
+        dates_text = normalize_text(candidate.get("dates", ""))
+        if dates_text:
+            c.setFont(FONT_REGULAR, 10.6)
+            c.drawRightString(right, y, dates_text)
         y -= sv(16)
         for bullet in candidate["bullets"]:
             y = maybe_new_page(c, y, sv(32))
-            bullet_lines = wrap_text(c, bullet, FONT_REGULAR, 10.2, content_w - 20)
-            c.setFont(FONT_REGULAR, 10.2)
-            c.drawString(left + 6, y, u"\u2022")
-            c.drawString(left + 14, y, bullet_lines[0])
-            y -= sv(15)
-            for line in bullet_lines[1:]:
-                c.drawString(left + 14, y, line)
+            bullet_lines = wrap_bolded_lines(c, bullet, 10.2, content_w - 20)
+            for idx, line in enumerate(bullet_lines):
+                if not line:
+                    continue
+                if idx == 0:
+                    c.setFont(FONT_REGULAR, 10.2)
+                    c.drawString(left + 6, y, u"\u2022")
+                x_cursor = left + 14
+                for token, is_bold in line:
+                    font = FONT_BOLD if is_bold else FONT_REGULAR
+                    c.setFont(font, 10.2)
+                    c.drawString(x_cursor, y, token)
+                    x_cursor += c.stringWidth(token, font, 10.2)
                 y -= sv(15)
         y -= sv(10)
         drawn += 1
@@ -514,9 +582,12 @@ def generate_pdf(data, title="Resume", include_all_projects=False):
         y -= sv(12)
 
         y = draw_section_header(c, "Technical Skills and Awards", LEFT, y)
-        y = draw_line(c, f"Awards: {', '.join(normalize_text(x) for x in data['awards'])}", LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
-        y = draw_line(c, f"Languages: {', '.join(normalize_text(x) for x in data['languages'])}", LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
-        y = draw_line(c, f"Tools & Libraries: {', '.join(normalize_text(x) for x in data['tools'])}", LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
+        awards_text = ", ".join(normalize_text(x) for x in data["awards"])
+        y = draw_labelled_line(c, "Awards", awards_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
+        languages_text = ", ".join(normalize_text(x) for x in data["languages"])
+        y = draw_labelled_line(c, "Languages", languages_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
+        tools_text = ", ".join(normalize_text(x) for x in data["tools"])
+        y = draw_labelled_line(c, "Tools & Libraries", tools_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
         y -= sv(10)
 
         bounds = data.get("_bullet_bounds", {}) if isinstance(data, dict) else {}

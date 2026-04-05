@@ -162,7 +162,7 @@ def parse_config_text(text):
     return config
 
 # ─── Filtering ───
-def filter_cv(config):
+def filter_cv(config, *, force_include_all_projects=False):
     source_cv = get_cv_data()
     data = copy.deepcopy(source_cv)
     industries = config.get("industry") or config.get("industries")
@@ -227,7 +227,7 @@ def filter_cv(config):
                     for item in source_cv.get("projects", []):
                         if project_matches_tags(item, tags):
                             add_item(item)
-        return ordered
+        return ordered, seen
 
     def filter_by_tags(items):
         if not expanded_tags:
@@ -262,10 +262,22 @@ def filter_cv(config):
 
     selected_by_steps = select_projects_by_steps()
     if selected_by_steps is not None:
-        data["projects"] = selected_by_steps
+        ordered_projects, seen = selected_by_steps
+        if force_include_all_projects:
+            for item in source_cv.get("projects", []):
+                pid = str(item.get("id", "")).strip().lower()
+                if pid and pid not in seen:
+                    ordered_projects.append(copy.deepcopy(item))
+                    seen.add(pid)
+        data["projects"] = ordered_projects
     else:
-        data["projects"] = filter_by_tags(data["projects"])
-        data["projects"] = order_projects_for_resume(data["projects"])
+        if force_include_all_projects:
+            data["projects"] = copy.deepcopy(source_cv.get("projects", []))
+            if resolved_industries:
+                data["projects"] = order_projects_for_resume(data["projects"])
+        else:
+            data["projects"] = filter_by_tags(data["projects"])
+            data["projects"] = order_projects_for_resume(data["projects"])
 
     include_projects = str(config.get("include_projects", "true")).lower() != "false"
     if not include_projects:
@@ -602,6 +614,33 @@ def compile_resume():
 
     filtered = filter_cv(config)
     pdf_bytes, err = generate_pdf(filtered, title=filename)
+
+    if pdf_bytes:
+        return send_file(
+            BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            download_name=f"{filename}.pdf",
+        )
+    else:
+        return jsonify({"error": f"PDF generation failed: {err}"}), 500
+
+
+@app.route("/api/compile-cv", methods=["POST", "OPTIONS"])
+def compile_cv():
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(force=True)
+    config_text = data.get("config", "")
+    filename = data.get("filename", "cv")
+    if not config_text.strip():
+        return jsonify({"error": "Empty config"}), 400
+
+    config = parse_config_text(config_text)
+    if not config:
+        return jsonify({"error": "No valid key=value pairs found"}), 400
+
+    filtered = filter_cv(config, force_include_all_projects=True)
+    pdf_bytes, err = generate_pdf(filtered, title=filename, include_all_projects=True)
 
     if pdf_bytes:
         return send_file(

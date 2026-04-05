@@ -227,11 +227,21 @@ const HELP_CFG = `# ════════════════════
 # include_projects=true|false
 # min_bullets=N
 # max_bullets=N
-#
+# 
+`;
+
+const CV_CFG = `# Full CV ordering instructions
+# This file hits /api/compile-cv so you can reorder the entire project list.
+# List project IDs in the order you want them to appear; duplicates are removed.
+projects=[malloc, audio_relay, squishy, lean4game, sigecom, fin_eng]
+include_projects=true
+min_bullets=1
+max_bullets=3
 `;
 
 let files = {
   "cv.pdf": { type: "pdf", content: null },
+  "cv.cfg": { type: "cfg", content: CV_CFG, target: "cv" },
   "quant_resume.cfg": { type: "cfg", content: DEFAULT_CFG },
   "systems_resume.cfg": { type: "cfg", content: SYSTEMS_CFG },
   "ai_resume.cfg": { type: "cfg", content: AI_CFG },
@@ -329,19 +339,21 @@ async function fetchCvPdf() {
   }
 }
 
-async function compileResume() {
+async function compileConfig() {
   const file = files[activeFile];
   if (!file || file.type !== "cfg") { log("error", "No .cfg file active."); return; }
   if (activeFile === "README.cfg") { log("warn", "README.cfg is reference-only."); return; }
   const configText = file.content;
-  const baseName = activeFile.replace(".cfg", "");
+  const target = file.target || "resume";
+  const baseName = target === "cv" ? "cv" : activeFile.replace(".cfg", "");
+  const endpoint = target === "cv" ? "/api/compile-cv" : "/api/compile";
 
   compiling = true;
   render();
-  log("cmd", `$ generate ${baseName}.pdf`);
+  log("cmd", `$ generate ${baseName}.pdf${target === "cv" ? " (CV)" : ""}`);
 
   try {
-    const resp = await fetch("/api/compile", {
+    const resp = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ config: configText, filename: baseName }),
@@ -357,7 +369,7 @@ async function compileResume() {
     generatedBlobUrl = URL.createObjectURL(blob);
     generatedFilename = baseName;
 
-    log("success", `Compiled ${baseName}.pdf (${(blob.size / 1024).toFixed(1)} KB)`);
+    log("success", `Compiled ${baseName}.pdf${target === "cv" ? " (CV)" : ""} (${(blob.size / 1024).toFixed(1)} KB)`);
 
     if (!openTabs.includes("__gen__")) openTabs.push("__gen__");
     activeFile = "__gen__";
@@ -448,8 +460,8 @@ async function render() {
   const ta = document.getElementById("tab-actions");
   let actions = "";
   if (activeFile === "cv.pdf" || activeFile === "__gen__") actions = "";
-  if (activeFile && files[activeFile]?.type === "cfg" && activeFile !== "README.cfg") {
-    actions += `<button class="btn btn-run" onclick="compileResume()" ${compiling ? 'disabled' : ''}>▶ Run</button>`;
+    if (activeFile && files[activeFile]?.type === "cfg" && activeFile !== "README.cfg") {
+      actions += `<button class="btn btn-run" onclick="compileConfig()" ${compiling ? 'disabled' : ''}>▶ Run</button>`;
   }
   ta.innerHTML = actions;
 
@@ -519,7 +531,7 @@ async function render() {
     ta2.addEventListener("keydown", e => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        if (activeFile !== "README.cfg") compileResume();
+        if (activeFile !== "README.cfg") compileConfig();
       }
       // Tab key inserts spaces
       if (e.key === "Tab") {

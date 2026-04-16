@@ -136,6 +136,70 @@ def _filter_experiences_by_years(experiences, min_start_year, min_end_year):
         filtered.append(entry)
     return filtered
 
+
+def _normalize_tagged_items(items):
+    normalized = []
+    for entry in items or []:
+        if isinstance(entry, str):
+            normalized.append({"name": entry, "tags": []})
+        elif isinstance(entry, dict):
+            normalized.append({
+                "name": entry.get("name") or "",
+                "tags": [
+                    str(tag).strip().lower()
+                    for tag in entry.get("tags", [])
+                    if isinstance(tag, str) and tag.strip()
+                ],
+            })
+    return normalized
+
+
+def _order_tagged_items(items, resolved_industries):
+    if not resolved_industries or not items:
+        return items
+    ordered = []
+    seen = set()
+    for key in resolved_industries:
+        canonical = INDUSTRY_ALIASES.get(key, key)
+        tags = INDUSTRY_TAGS.get(canonical, {canonical})
+        for item in items:
+            name = item.get("name", "")
+            if not name:
+                continue
+            key_name = name.strip().lower()
+            if key_name in seen:
+                continue
+            if any(tag in tags for tag in item.get("tags", [])):
+                ordered.append(item)
+                seen.add(key_name)
+    for item in items:
+        name = item.get("name", "")
+        key_name = name.strip().lower()
+        if name and key_name not in seen:
+            ordered.append(item)
+            seen.add(key_name)
+    return ordered
+
+
+def _order_section(values, tagged_items, resolved_industries):
+    normalized_values = [str(v) for v in values or [] if isinstance(v, str)]
+    ordered = []
+    seen = set()
+    tagged = _normalize_tagged_items(tagged_items)
+    tagged_ordered = _order_tagged_items(tagged, resolved_industries)
+    for item in tagged_ordered:
+        name = item.get("name", "")
+        key_name = name.strip().lower()
+        if name and key_name not in seen:
+            ordered.append(name)
+            seen.add(key_name)
+    for raw in normalized_values:
+        key_name = raw.strip().lower()
+        if key_name and key_name not in seen:
+            ordered.append(raw.strip())
+            seen.add(key_name)
+    return ordered or normalized_values
+
 INDUSTRY_TAGS = {
     "quant": {"quant_dev", "trading", "finance"},
     "systems": {"systems", "networking", "hardware"},
@@ -207,6 +271,7 @@ def filter_cv(config, *, force_include_all_projects=False):
     earliest_start_year = _config_year_from_value(config.get("earliest_start_date"), DEFAULT_EARLIEST_START_YEAR)
     earliest_end_year = _config_year_from_value(config.get("earliest_end_date"), DEFAULT_EARLIEST_END_YEAR)
     data["experience"] = _filter_experiences_by_years(data["experience"], earliest_start_year, earliest_end_year)
+    data["_ordering_industries"] = []
     industries = config.get("industry") or config.get("industries")
     selected_projects = config.get("projects") or config.get("project")
     if isinstance(industries, str):
@@ -228,6 +293,8 @@ def filter_cv(config, *, force_include_all_projects=False):
     for key in resolved_industries:
         canonical = INDUSTRY_ALIASES.get(key, key)
         expanded_tags |= INDUSTRY_TAGS.get(canonical, {key})
+
+    data["_ordering_industries"] = resolved_industries
 
     project_lookup = {}
     for item in source_cv.get("projects", []):
@@ -608,9 +675,13 @@ def generate_pdf(data, title="Resume", include_all_projects=False):
         c.drawString(LEFT, y, normalize_text(edu["degree"]))
         y -= sv(16)
 
+        ordering = data.get("_ordering_industries", [])
+        coursework_values = edu.get("coursework", [])
+        coursework_tags = edu.get("coursework_tags", [])
+        coursework_ordered = _order_section(coursework_values, coursework_tags, ordering)
         y = draw_bulleted_line(
             c,
-            f"Relevant Coursework: {', '.join(normalize_text(x) for x in edu['coursework'])}",
+            f"Relevant Coursework: {', '.join(normalize_text(x) for x in coursework_ordered)}",
             LEFT,
             y,
             FONT_REGULAR,
@@ -623,7 +694,10 @@ def generate_pdf(data, title="Resume", include_all_projects=False):
         y = draw_section_header(c, "Technical Skills and Awards", LEFT, y)
         awards_text = ", ".join(normalize_text(x) for x in data["awards"])
         y = draw_labelled_line(c, "Awards", awards_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
-        languages_text = ", ".join(normalize_text(x) for x in data["languages"])
+        languages_values = data.get("languages", [])
+        languages_tags = data.get("language_tags", [])
+        languages_ordered = _order_section(languages_values, languages_tags, ordering)
+        languages_text = ", ".join(normalize_text(x) for x in languages_ordered)
         y = draw_labelled_line(c, "Languages", languages_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
         tools_text = ", ".join(normalize_text(x) for x in data["tools"])
         y = draw_labelled_line(c, "Tools & Libraries", tools_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))

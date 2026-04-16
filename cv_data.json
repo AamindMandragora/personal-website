@@ -20,6 +20,18 @@
       "Computer Architecture",
       "System Programming",
       "Computational Science"
+    ],
+    "coursework_tags": [
+      { "name": "System Programming", "tags": ["systems"] },
+      { "name": "Computer Architecture", "tags": ["systems"] },
+      { "name": "Data Structures", "tags": ["software_engineering", "systems"] },
+      { "name": "Abstract Algebra", "tags": ["formal_methods"] },
+      { "name": "Number Theory", "tags": ["formal_methods"] },
+      { "name": "Abstract Linear Algebra", "tags": ["formal_methods"] },
+      { "name": "Discrete Structures", "tags": ["formal_methods"] },
+      { "name": "Statistics & Probability", "tags": ["quant", "ai_ml"] },
+      { "name": "Differential Equations", "tags": ["quant"] },
+      { "name": "Computational Science", "tags": ["software_engineering"] }
     ]
   },
   "awards": [
@@ -38,6 +50,48 @@
     "SQL",
     "React",
     "TypeScript"
+  ],
+  "language_tags": [
+    {
+      "name": "Lean4",
+      "tags": ["formal_methods"]
+    },
+    {
+      "name": "Dafny",
+      "tags": ["formal_methods"]
+    },
+    {
+      "name": "Python",
+      "tags": ["software_engineering", "ai_ml"]
+    },
+    {
+      "name": "C++",
+      "tags": ["systems"]
+    },
+    {
+      "name": "C",
+      "tags": ["systems"]
+    },
+    {
+      "name": "Verilog",
+      "tags": ["systems", "hardware"]
+    },
+    {
+      "name": "Rust",
+      "tags": ["systems"]
+    },
+    {
+      "name": "SQL",
+      "tags": ["software_engineering"]
+    },
+    {
+      "name": "React",
+      "tags": ["software_engineering"]
+    },
+    {
+      "name": "TypeScript",
+      "tags": ["software_engineering"]
+    }
   ],
   "tools": [
     "Git",

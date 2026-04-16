@@ -10,7 +10,16 @@
     "dates": "Aug 2025 -- May 2028",
     "degree": "B.S. in Mathematics (Technical GPA: 4.0, Overall GPA: 3.98); James Scholar in the College of LAS",
     "coursework": [
-      "Abstract Algebra", "Number Theory", "Abstract Linear Algebra", "Discrete Structures", "Statistics & Probability", "Differential Equations", "Data Structures", "Computer Architecture", "System Programming", "Computational Science"
+      "Abstract Algebra",
+      "Number Theory",
+      "Abstract Linear Algebra",
+      "Discrete Structures",
+      "Statistics & Probability",
+      "Differential Equations",
+      "Data Structures",
+      "Computer Architecture",
+      "System Programming",
+      "Computational Science"
     ]
   },
   "awards": [
@@ -19,7 +28,16 @@
     "Quiz Bowl Nationals"
   ],
   "languages": [
-    "Lean4", "Dafny", "Python", "C++", "C", "Verilog", "Rust", "SQL", "React", "TypeScript"
+    "Lean4",
+    "Dafny",
+    "Python",
+    "C++",
+    "C",
+    "Verilog",
+    "Rust",
+    "SQL",
+    "React",
+    "TypeScript"
   ],
   "tools": [
     "Git",
@@ -66,6 +84,38 @@
         "Built a **Streamlit** UI enabling CRUD operations for **300+** JSON configuration files used by an internal Generative AI API and migrated **300+** prompt templates into a **PostgreSQL** database.",
         "Designed a modular configuration system enabling dynamic pipeline updates without code changes, reducing reconfiguration time from **hours to minutes** for internal AI workflows."
       ]
+    },
+    {
+      "id": "imsa_tutoring",
+      "name": "Illinois Math and Science Academy",
+      "subtitle": "Peer Tutor \\& Special Math Support",
+      "dates": "Aug 2023 -- May 2025",
+      "tags": [
+        "pedagogy",
+        "math",
+        "cs"
+      ],
+      "bullets": [
+        "Held **4+ open office hours per week** for **15+ students**, covering every **math and CS course** offered (Advanced Programming, Object Oriented Programming, etc.) and adapting explanations to each learner's prerequisites.",
+        "Ran **2 additional hours per week** of dedicated **advanced math support** (Abstract Algebra, Number Theory), walking students through **undergraduate-level proofs** and frameworks beyond the scope of standard coursework.",
+        "Tutored supplementary subjects including **AP Chemistry** and **French**, broadening access to on-demand academic support across IMSA's STEM and humanities curriculum."
+      ]
+    },
+    {
+      "id": "imsalympians",
+      "name": "IMSAlympians (IMSA Competitive Olympiad Club)",
+      "subtitle": "President \\& CS Coordinator",
+      "dates": "Aug 2023 -- May 2025",
+      "tags": [
+        "pedagogy",
+        "cs",
+        "math"
+      ],
+      "bullets": [
+        "Led weekly **USACO study sessions** for **20+ members**, breaking down **competitive algorithms and data structures** (binary search, monotonic stacks, BFS/DFS) into step-by-step implementation walkthroughs.",
+        "Aided **5+ members** in advancing to the **Silver Division** within one year of consistent attendance.",
+        "Organized quarterly **cross-club outreach events** connecting advanced STEM topics to olympiad problem-solving, growing **general membership to 60+**."
+      ]
     }
   ],
   "projects": [
@@ -73,10 +123,15 @@
       "id": "lean4game",
       "name": "Abstract Algebra, the Game",
       "subtitle": "Interactive Lean4 Proof Game",
-      "tags": ["formal_verification", "math", "lean4", "pedagogy"],
+      "tags": [
+        "formal_verification",
+        "math",
+        "lean4",
+        "pedagogy"
+      ],
       "bullets": [
-        "Developing an interactive **Lean4** proof game hosted on the adam.math.hhu.de Lean Game Server comprising **2 worlds** and **24 levels** that teach group theory through guided theorem proving, covering groups, abelian groups, subgroups, and normal subgroups.",
-        "Formalized **1,200+** lines of Lean4 encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, trivial/entire subgroups, subgroup intersection, and the one-step subgroup test, building a notation-agnostic `MyGroup` typeclass from axioms.",
+        "Developing an interactive **Lean4** proof game hosted on the Lean Game Server comprising **2 worlds** and **24 levels** that teach group theory through guided theorem proving, covering abelian groups, subgroups, and normal subgroups.",
+        "Formalized **1,200+** lines of Lean4 encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, subgroup intersection, and the one-step subgroup test, building a notation-agnostic `MyGroup` typeclass.",
         "Designed progressive level sequences that decompose **formalized proofs** into **structured learning blocks**, with layered hints and narrative annotations guiding players from basic group axioms to advanced subgroup characterizations."
       ]
     },

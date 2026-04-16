@@ -187,12 +187,23 @@ min_bullets=1
 max_bullets=3
 `;
 
+// --------------------------------------------------------------------------
 const FORMAL_CFG = `# Formal Methods focused
 projects=[lean4game, squishy]
 industry=[formal_methods, ai_ml, systems]
 include_projects=true
 min_bullets=1
 max_bullets=3
+`;
+
+const PEDAGOGY_CFG = `# UIUC CS 341 course assistant
+projects=[lean4game, malloc, audio_relay]
+industry=[formal_methods, systems]
+include_projects=true
+min_bullets=2
+max_bullets=3
+earliest_start_date=2021
+earliest_end_date=2021
 `;
 
 const HELP_CFG = `# ═══════════════════════════════════════
@@ -237,6 +248,8 @@ projects=[malloc, audio_relay, squishy, lean4game, sigecom, fin_eng]
 include_projects=true
 min_bullets=1
 max_bullets=3
+earliest_start_date=2024
+earliest_end_date=2024
 `;
 
 let files = {
@@ -246,6 +259,7 @@ let files = {
   "systems_resume.cfg": { type: "cfg", content: SYSTEMS_CFG },
   "ai_resume.cfg": { type: "cfg", content: AI_CFG },
   "formal_resume.cfg": { type: "cfg", content: FORMAL_CFG },
+  "pedagogy.cfg": { type: "cfg", content: PEDAGOGY_CFG },
   "README.cfg": { type: "cfg", content: HELP_CFG },
 };
 let activeFile = "cv.pdf";

@@ -7,7 +7,7 @@ Endpoints:
   POST /api/compile          → accepts JSON config body, returns a filtered resume PDF
   POST /api/compile-raw      → accepts raw .cfg text body, returns a filtered resume PDF
 """
-import os, json, copy, re
+import os, json, copy, re, datetime
 from flask import Flask, request, send_file, jsonify, send_from_directory
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
@@ -47,12 +47,15 @@ CM = inch / 2.54
 LEFT = 1.0 * CM
 RIGHT = letter[0] - (1.0 * CM)
 TOP = letter[1] - (1.0 * CM)
-BOTTOM = 1.0 * CM
+BOTTOM = 0.75 * CM
 WIDTH = RIGHT - LEFT
 FONT_REGULAR = "Times-Roman"
 FONT_BOLD = "Times-Bold"
 FONT_ITALIC = "Times-Italic"
 SPACING_SCALE = 0.85
+CURRENT_YEAR = datetime.datetime.now().year
+DEFAULT_EARLIEST_START_YEAR = 2024
+DEFAULT_EARLIEST_END_YEAR = 2024
 
 
 def sv(value):
@@ -99,6 +102,39 @@ def normalize_text(text):
         .replace("~", " ")
         .replace("--", "—")
     )
+
+
+def _config_year_from_value(value, fallback):
+    if value is None:
+        return fallback
+    try:
+        return int(str(value).strip())
+    except ValueError:
+        return fallback
+
+
+def _parse_experience_year_range(dates_text):
+    if not dates_text:
+        return 0, 9999
+    normalized = str(dates_text).lower()
+    year_matches = re.findall(r"\d{4}", normalized)
+    start_year = int(year_matches[0]) if year_matches else 0
+    end_year = int(year_matches[-1]) if year_matches else CURRENT_YEAR
+    if "present" in normalized:
+        end_year = max(end_year, CURRENT_YEAR)
+    return start_year, end_year
+
+
+def _filter_experiences_by_years(experiences, min_start_year, min_end_year):
+    filtered = []
+    for entry in experiences:
+        start_year, end_year = _parse_experience_year_range(entry.get("dates", ""))
+        if min_start_year is not None and start_year < min_start_year:
+            continue
+        if min_end_year is not None and end_year < min_end_year:
+            continue
+        filtered.append(entry)
+    return filtered
 
 INDUSTRY_TAGS = {
     "quant": {"quant_dev", "trading", "finance"},
@@ -168,6 +204,9 @@ def parse_config_text(text):
 def filter_cv(config, *, force_include_all_projects=False):
     source_cv = get_cv_data()
     data = copy.deepcopy(source_cv)
+    earliest_start_year = _config_year_from_value(config.get("earliest_start_date"), DEFAULT_EARLIEST_START_YEAR)
+    earliest_end_year = _config_year_from_value(config.get("earliest_end_date"), DEFAULT_EARLIEST_END_YEAR)
+    data["experience"] = _filter_experiences_by_years(data["experience"], earliest_start_year, earliest_end_year)
     industries = config.get("industry") or config.get("industries")
     selected_projects = config.get("projects") or config.get("project")
     if isinstance(industries, str):
@@ -426,7 +465,7 @@ def draw_section_header(c, title, x, y):
     c.line(x, y, RIGHT, y)
     return y - sv(18)
 
-def maybe_new_page(c, y, needed_height):
+def maybe_new_page(c, y, needed_height, slack=sv(4)):
     if y - needed_height >= BOTTOM:
         return y
     c.showPage()
@@ -519,7 +558,7 @@ def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_
                     c.drawString(x_cursor, y, token)
                     x_cursor += c.stringWidth(token, font, 10.2)
                 y -= sv(15)
-        y -= sv(10)
+        y -= sv(8)
         drawn += 1
     return y, drawn
 
@@ -627,7 +666,8 @@ def ensure_cv_pdf():
     if not cv_pdf_is_stale():
         return
     print("[startup] Generating CV PDF from cv_data.json...")
-    pdf_bytes, err = generate_pdf(get_cv_data(), "CV", include_all_projects=True)
+    filtered = filter_cv({}, force_include_all_projects=True)
+    pdf_bytes, err = generate_pdf(filtered, "CV", include_all_projects=True)
     if pdf_bytes:
         with open(CV_PDF_PATH, "wb") as f:
             f.write(pdf_bytes)

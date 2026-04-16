@@ -57,6 +57,10 @@ Supported keys:
 - `include_projects=true|false`
 - `min_bullets=N`
 - `max_bullets=N`
+- `earliest_start_date=YYYY` (filters experiences whose start year is at least this value; default 2024; lower it to include older entries)
+- `earliest_end_date=YYYY` (filters experiences whose end year is at least this value; default 2024; lower it to include older entries)
+
+By default the résumé generator (including the precompiled CV) filters experiences to those that start and end in 2024 or later unless you explicitly lower `earliest_start_date`/`earliest_end_date`.
 
 Built-in industry tags:
 

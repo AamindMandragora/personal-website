@@ -116,9 +116,9 @@
         "python"
       ],
       "bullets": [
-        "Researching verified generation of custom constrained decoding strategies (CSDs) that enforce syntactic and semantic correctness on LLM outputs, synthesizing **40+** CSDs to date.",
-        "Authoring **500+** lines of verified **Dafny** specifications across **15+** helper functions, formally proving that generated CSDs satisfy termination and grammatical correctness invariants.",
-        "Evaluating the framework on HuggingFace models (Qwen, Mistral, Llama 3) across **GSM-Symbolic** and **PDDL** benchmarks, comparing against CRANE and DINGO baselines."
+        "Co-developed a verified constrained-decoding library in **Dafny** (**~1,900** lines) with **60+** cost-bounded CSD helpers. Pre/postconditions gate LLM-synthesized strategies before **Python** compilation.",
+        "Integrated verify→compile→evaluate on **GSM-Symbolic**, **Spider**, and **SMILES**. Ran factorial studies across **4** HuggingFace evaluators (**Qwen** 1.5B/7B/14B, **Llama 3.1** 8B).",
+        "Architected unified legacy adapters, stratified **100-example** splits, and syntax-annotated scoring. Compared **100+** configurations against CRANE, IterGen, CARS, and GCD to set **MetaDecode** stopping criteria."
       ]
     }
   ],
@@ -217,9 +217,9 @@
         "quant_dev"
       ],
       "bullets": [
-        "Developed a multithreaded UDP server in **C** (Linux/Raspberry Pi) to serve as an asynchronous store-and-forward audio relay.",
-        "Architected a custom client-server protocol using **POSIX sockets** and **pthreads** to efficiently manage connection lifecycles and message delivery.",
-        "Engineered a **lock-free** ring buffer for concurrent audio ingestion, reducing synchronization overhead and improving system latency over mutex-based alternatives."
+        "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX sockets** and per-peer **pthreads** to isolate connection state, replacing a single-threaded poll loop that serialized concurrent sessions and amplified head-of-line blocking.",
+        "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, eliminating mutex contention on the hot path versus a mutex-backed prototype that introduced measurable tail latency under load.",
+        "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, demonstrating that store-and-forward relay semantics need not trade away interactive responsiveness."
       ]
     },
     {

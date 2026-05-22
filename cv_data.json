@@ -8,7 +8,7 @@
   "education": {
     "school": "University of Illinois at Urbana-Champaign",
     "dates": "Aug 2025 -- May 2028",
-    "degree": "B.S. in Mathematics (Technical GPA: 4.0, Overall GPA: 3.98); James Scholar in the College of LAS",
+    "degree": "B.S. in Mathematics (Technical GPA: 4.0, Overall GPA: 3.98); Honors: James Scholar, Dean's List",
     "coursework": [
       "Abstract Algebra",
       "Number Theory",
@@ -38,18 +38,6 @@
     "American Invitational Mathematics Exam (AIME) Qualifier",
     "USACO Silver Division",
     "Quiz Bowl Nationals"
-  ],
-  "languages": [
-    "Lean4",
-    "Dafny",
-    "Python",
-    "C++",
-    "C",
-    "Verilog",
-    "Rust",
-    "SQL",
-    "React",
-    "TypeScript"
   ],
   "language_tags": [
     {
@@ -91,17 +79,20 @@
     {
       "name": "TypeScript",
       "tags": ["software_engineering"]
+    },
+    {
+      "name": "HTML/CSS/JS",
+      "tags": ["software_engineering"]
     }
   ],
   "tools": [
-    "Git",
     "Linux",
     "Tensorflow",
     "NumPy",
-    "Jupyter Notebook",
     "MongoDB",
     "FastAPI",
-    "PyElastica"
+    "AWS Bedrock",
+    "Claude Code/Codex/Cursor"
   ],
   "research": [
     {

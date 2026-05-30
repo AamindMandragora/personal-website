@@ -435,6 +435,14 @@ def filter_cv(config, *, force_include_all_projects=False):
     data["_bullet_bounds"] = {"min": min_b, "max": max_b}
     return data
 
+
+def pdf_title_from_config(config, filename_fallback, person_name):
+    """Resolve PDF document metadata title from cfg or fall back to name + filename."""
+    raw = config.get("title") or config.get("pdf_title")
+    if raw is not None and str(raw).strip():
+        return normalize_text(str(raw).strip())
+    return f"{normalize_text(person_name)} - {filename_fallback}"
+
 WHITESPACE_PATTERN = re.compile(r"(\s+)")
 
 
@@ -705,12 +713,13 @@ def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_
         drawn += 1
     return y, drawn
 
-def generate_pdf(data, title="Resume", include_all_projects=False):
+def generate_pdf(data, title="Resume", pdf_title=None, include_all_projects=False):
     """Generate ATS-friendly PDF bytes with LaTeX-like visual layout."""
     try:
         buf = BytesIO()
         c = canvas.Canvas(buf, pagesize=letter, pageCompression=1)
-        c.setTitle(f"{data['name']} - {title}")
+        document_title = pdf_title or f"{normalize_text(data['name'])} - {title}"
+        c.setTitle(document_title)
         c.setAuthor(data["name"])
         y = TOP
 
@@ -872,7 +881,8 @@ def compile_resume():
         return jsonify({"error": "No valid key=value pairs found"}), 400
 
     filtered = filter_cv(config)
-    pdf_bytes, err = generate_pdf(filtered, title=filename)
+    pdf_title = pdf_title_from_config(config, filename, filtered["name"])
+    pdf_bytes, err = generate_pdf(filtered, title=filename, pdf_title=pdf_title)
 
     if pdf_bytes:
         return send_file(
@@ -899,7 +909,8 @@ def compile_cv():
         return jsonify({"error": "No valid key=value pairs found"}), 400
 
     filtered = filter_cv(config, force_include_all_projects=True)
-    pdf_bytes, err = generate_pdf(filtered, title=filename, include_all_projects=True)
+    pdf_title = pdf_title_from_config(config, filename, filtered["name"])
+    pdf_bytes, err = generate_pdf(filtered, title=filename, pdf_title=pdf_title, include_all_projects=True)
 
     if pdf_bytes:
         return send_file(
@@ -921,7 +932,8 @@ def compile_raw():
 
     config = parse_config_text(config_text)
     filtered = filter_cv(config)
-    pdf_bytes, err = generate_pdf(filtered, title="resume")
+    pdf_title = pdf_title_from_config(config, "resume", filtered["name"])
+    pdf_bytes, err = generate_pdf(filtered, title="resume", pdf_title=pdf_title)
 
     if pdf_bytes:
         return send_file(BytesIO(pdf_bytes), mimetype="application/pdf",

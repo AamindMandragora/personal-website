@@ -48,6 +48,7 @@ industry=[systems, ai_ml]
 include_projects=true
 min_bullets=1
 max_bullets=3
+title=Quant Resume
 ```
 
 Supported keys:
@@ -57,6 +58,7 @@ Supported keys:
 - `include_projects=true|false`
 - `min_bullets=N`
 - `max_bullets=N`
+- `title=...` (PDF document metadata title shown in browser tabs and PDF readers; defaults to `{name} - {filename}`)
 - `earliest_start_date=YYYY` (filters experiences whose start year is at least this value; default 2024; lower it to include older entries)
 - `earliest_end_date=YYYY` (filters experiences whose end year is at least this value; default 2024; lower it to include older entries)
 

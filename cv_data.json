@@ -107,7 +107,7 @@
         "python"
       ],
       "bullets": [
-        "Co-developed a verified constrained-decoding library in **Dafny** (**~1,900** lines) with **60+** cost-bounded CSD helpers. Pre/postconditions gate LLM-synthesized strategies before **Python** compilation.",
+        "Co-developed a verified constrained-decoding library in **Dafny** (over **1,900** lines) with **60+** cost-bounded CSD helpers. Pre/postconditions gate LLM-synthesized strategies before **Python** compilation.",
         "Integrated verify→compile→evaluate on **GSM-Symbolic**, **Spider**, and **SMILES**. Ran factorial studies across **4** HuggingFace evaluators (**Qwen** 1.5B/7B/14B, **Llama 3.1** 8B).",
         "Architected unified legacy adapters, stratified **100-example** splits, and syntax-annotated scoring. Compared **100+** configurations against CRANE, IterGen, CARS, and GCD to set **MetaDecode** stopping criteria."
       ]
@@ -142,7 +142,7 @@
       ],
       "bullets": [
         "Held **4+ open office hours per week** for **15+ students**, covering every **math and CS course** offered (Advanced Programming, Object Oriented Programming, etc.) and adapting explanations to each learner's prerequisites.",
-        "Ran **2 additional hours per week** of dedicated **advanced math support** (Abstract Algebra, Number Theory), walking students through **undergraduate-level proofs** and frameworks beyond the scope of standard coursework.",
+        "Ran **2 additional hours per week** of dedicated **advanced math support** (Abstract Algebra, Number Theory), walking students through **undergraduate-level proofs** and frameworks beyond the scope of standard coursework, as well as grading weekly assignments and providing feedback for **40+** students.",
         "Tutored supplementary subjects including **AP Chemistry** and **French**, broadening access to on-demand academic support across IMSA's STEM and humanities curriculum."
       ]
     },

@@ -99,6 +99,7 @@ personal-website/
 ├── server.py
 ├── cv_data.json
 ├── cv.pdf
+├── configs/          # .cfg resume presets (loaded by the browser IDE)
 ├── requirements.txt
 ├── fonts/
 └── static/
@@ -113,6 +114,8 @@ personal-website/
 | `/api/cv.pdf` | GET | Returns the full CV PDF |
 | `/api/compile` | POST | Accepts `{ config, filename }` and returns a generated resume PDF |
 | `/api/compile-raw` | POST | Accepts raw `.cfg` text and returns a generated resume PDF |
+| `/api/configs` | GET/POST | List or create `.cfg` files in `configs/` |
+| `/api/configs/<name>` | GET/PUT/DELETE | Read, save, or delete a `.cfg` file |
 | `/api/data` | GET | Publishes `cv_data.json` so bots and screen readers can ingest the structured content |
 | `/api/health` | GET | Health check |
 

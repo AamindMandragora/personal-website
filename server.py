@@ -6,6 +6,11 @@ Endpoints:
   GET  /api/cv.pdf          → returns the pre-compiled full CV PDF
   POST /api/compile          → accepts JSON config body, returns a filtered resume PDF
   POST /api/compile-raw      → accepts raw .cfg text body, returns a filtered resume PDF
+  GET  /api/configs          → list .cfg files from configs/
+  GET  /api/configs/<name>   → read a .cfg file
+  PUT  /api/configs/<name>    → save a .cfg file
+  POST /api/configs          → create a new .cfg file
+  DELETE /api/configs/<name> → delete a .cfg file
 """
 import os, json, copy, re, datetime
 from flask import Flask, request, send_file, jsonify, send_from_directory
@@ -21,8 +26,11 @@ app = Flask(__name__, static_folder="static", static_url_path="/static")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_PDF_PATH = os.path.join(BASE_DIR, "cv.pdf")
 CV_JSON_PATH = os.path.join(BASE_DIR, "cv_data.json")
+CONFIGS_DIR = os.path.join(BASE_DIR, "configs")
 FONTS_DIR = os.path.join(BASE_DIR, "fonts")
 INDEX_HTML_PATH = os.path.join(BASE_DIR, "static", "index.html")
+PROTECTED_CONFIGS = {"README.cfg"}
+CV_CONFIG_NAME = "cv.cfg"
 
 # ─── CORS (no flask-cors needed) ───
 def add_cors(response):
@@ -538,19 +546,129 @@ def maybe_new_page(c, y, needed_height, slack=sv(4)):
     c.showPage()
     return TOP
 
+def _estimate_bullet_line_count(c, bullet, content_w):
+    return max(1, len(wrap_bolded_lines(c, bullet, 10.2, content_w - 20)))
+
+
 def _estimate_entry_height(c, item, content_w):
     title_line = sv(16)
     total = title_line + sv(6)
     for bullet in item.get("bullets", []):
-        bullet_lines = wrap_text(c, bullet, FONT_REGULAR, 10.2, content_w - 20)
-        total += sv(15) * max(1, len(bullet_lines))
+        total += sv(15) * _estimate_bullet_line_count(c, bullet, content_w)
     total += sv(12)
     return total
+
 
 def _item_with_bullets(item, bullet_count):
     if bullet_count is None:
         return item
     return {**item, "bullets": item.get("bullets", [])[:bullet_count]}
+
+
+def _layout_bottom_y(c, items, bullet_counts, start_y, content_w):
+    y = start_y
+    for item, bullet_count in zip(items, bullet_counts):
+        y -= _estimate_entry_height(c, _item_with_bullets(item, bullet_count), content_w)
+    return y
+
+
+def _per_item_bullet_cap(item, max_bullets):
+    available = len(item.get("bullets", []))
+    if max_bullets is None:
+        return available
+    return min(available, max_bullets)
+
+
+def _plan_one_page_layout(c, items, start_y, min_bullets, max_bullets, content_w):
+    """Pick project count + bullet counts that honor min/max and fill one page."""
+    if not items:
+        return []
+
+    lo = max(1, min_bullets) if min_bullets is not None else 1
+
+    def fits(subset, counts):
+        return _layout_bottom_y(c, subset, counts, start_y, content_w) >= BOTTOM
+
+    for item_count in range(len(items), 0, -1):
+        subset = items[:item_count]
+        caps = [_per_item_bullet_cap(it, max_bullets) for it in subset]
+        counts = caps[:]
+
+        while not fits(subset, counts) and any(count > lo for count in counts):
+            for idx in range(item_count - 1, -1, -1):
+                if counts[idx] > lo:
+                    counts[idx] -= 1
+                    break
+
+        if not fits(subset, counts):
+            continue
+
+        changed = True
+        while changed:
+            changed = False
+            for idx in range(item_count):
+                if counts[idx] < caps[idx]:
+                    trial = counts[:]
+                    trial[idx] += 1
+                    if fits(subset, trial):
+                        counts = trial
+                        changed = True
+                        break
+
+        return list(zip(subset, counts))
+
+    first = items[0]
+    cap = _per_item_bullet_cap(first, max_bullets)
+    for count in range(cap, lo - 1, -1):
+        if _layout_bottom_y(c, [first], [count], start_y, content_w) >= BOTTOM:
+            return [(first, count)]
+    return [(first, lo)]
+
+
+def _draw_single_entry(c, candidate, y, left, right, content_w, allow_new_page, keep_entry_together):
+    needed = _estimate_entry_height(c, candidate, content_w)
+    if keep_entry_together:
+        if (y - needed) < BOTTOM:
+            if not allow_new_page:
+                return y, False
+            y = maybe_new_page(c, y, needed + sv(10))
+    elif (y - sv(28)) < BOTTOM:
+        if not allow_new_page:
+            return y, False
+        y = maybe_new_page(c, y, sv(28))
+    c.setFont(FONT_BOLD, 10.6)
+    name_text = normalize_text(candidate["name"])
+    c.drawString(left, y, name_text)
+    c.setFont(FONT_ITALIC, 10.6)
+    subtitle = normalize_text(candidate["subtitle"])
+    name_end = left + c.stringWidth(name_text, FONT_BOLD, 10.6)
+    c.setFont(FONT_REGULAR, 10.6)
+    c.drawString(name_end + 1, y, ", ")
+    c.setFont(FONT_ITALIC, 10.6)
+    c.drawString(name_end + 8, y, subtitle)
+    dates_text = normalize_text(candidate.get("dates", ""))
+    if dates_text:
+        c.setFont(FONT_REGULAR, 10.6)
+        c.drawRightString(right, y, dates_text)
+    y -= sv(16)
+    for bullet in candidate["bullets"]:
+        y = maybe_new_page(c, y, sv(32))
+        bullet_lines = wrap_bolded_lines(c, bullet, 10.2, content_w - 20)
+        for idx, line in enumerate(bullet_lines):
+            if not line:
+                continue
+            if idx == 0:
+                c.setFont(FONT_REGULAR, 10.2)
+                c.drawString(left + 6, y, u"\u2022")
+            x_cursor = left + 14
+            for token, is_bold in line:
+                font = FONT_BOLD if is_bold else FONT_REGULAR
+                c.setFont(font, 10.2)
+                c.drawString(x_cursor, y, token)
+                x_cursor += c.stringWidth(token, font, 10.2)
+            y -= sv(15)
+    y -= sv(8)
+    return y, True
 
 
 def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_bullets=None, keep_entry_together=True):
@@ -563,69 +681,27 @@ def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_
     y = maybe_new_page(c, y, sv(36))
     y = draw_section_header(c, title, left, y)
     drawn = 0
+
+    if not allow_new_page and keep_entry_together:
+        planned = _plan_one_page_layout(c, items, y, min_bullets, max_bullets, content_w)
+        for it, bullet_count in planned:
+            candidate = _item_with_bullets(it, bullet_count)
+            y, ok = _draw_single_entry(
+                c, candidate, y, left, right, content_w, allow_new_page, keep_entry_together
+            )
+            if ok:
+                drawn += 1
+        return y, drawn
+
     for it in items:
-        # For tight page-fit mode, adapt bullets between max->min to fit one more project.
-        bullet_choices = [None]
-        if not allow_new_page and (min_bullets is not None or max_bullets is not None):
-            total_bullets = len(it.get("bullets", []))
-            hi = min(max_bullets if max_bullets is not None else total_bullets, total_bullets)
-            lo = min_bullets if min_bullets is not None else hi
-            lo = max(1, min(lo, hi))
-            bullet_choices = list(range(hi, lo - 1, -1))
-
         candidate = it
-        needed = _estimate_entry_height(c, candidate, content_w)
-        if not allow_new_page:
-            for bcount in bullet_choices:
-                trial = _item_with_bullets(it, bcount)
-                trial_needed = _estimate_entry_height(c, trial, content_w)
-                if (y - trial_needed) >= BOTTOM:
-                    candidate = trial
-                    needed = trial_needed
-                    break
-
-        if keep_entry_together:
-            if (y - needed) < BOTTOM:
-                if not allow_new_page:
-                    break
-                y = maybe_new_page(c, y, needed + sv(10))
-                candidate = it
-        elif (y - sv(28)) < BOTTOM:
-            if not allow_new_page:
-                break
-            y = maybe_new_page(c, y, sv(28))
-        c.setFont(FONT_BOLD, 10.6)
-        name_text = normalize_text(candidate["name"])
-        c.drawString(left, y, name_text)
-        c.setFont(FONT_ITALIC, 10.6)
-        subtitle = normalize_text(candidate["subtitle"])
-        name_end = left + c.stringWidth(name_text, FONT_BOLD, 10.6)
-        c.setFont(FONT_REGULAR, 10.6)
-        c.drawString(name_end + 1, y, ", ")
-        c.setFont(FONT_ITALIC, 10.6)
-        c.drawString(name_end + 8, y, subtitle)
-        dates_text = normalize_text(candidate.get("dates", ""))
-        if dates_text:
-            c.setFont(FONT_REGULAR, 10.6)
-            c.drawRightString(right, y, dates_text)
-        y -= sv(16)
-        for bullet in candidate["bullets"]:
-            y = maybe_new_page(c, y, sv(32))
-            bullet_lines = wrap_bolded_lines(c, bullet, 10.2, content_w - 20)
-            for idx, line in enumerate(bullet_lines):
-                if not line:
-                    continue
-                if idx == 0:
-                    c.setFont(FONT_REGULAR, 10.2)
-                    c.drawString(left + 6, y, u"\u2022")
-                x_cursor = left + 14
-                for token, is_bold in line:
-                    font = FONT_BOLD if is_bold else FONT_REGULAR
-                    c.setFont(font, 10.2)
-                    c.drawString(x_cursor, y, token)
-                    x_cursor += c.stringWidth(token, font, 10.2)
-                y -= sv(15)
-        y -= sv(8)
+        if max_bullets is not None:
+            candidate = _item_with_bullets(it, _per_item_bullet_cap(it, max_bullets))
+        y, ok = _draw_single_entry(
+            c, candidate, y, left, right, content_w, allow_new_page, keep_entry_together
+        )
+        if not ok:
+            break
         drawn += 1
     return y, drawn
 
@@ -856,8 +932,138 @@ def compile_raw():
 def health():
     return jsonify({"status": "ok", "pdf_engine": "reportlab"})
 
+
+def _safe_config_name(name):
+    base = os.path.basename(str(name or "").strip())
+    if not base or base in (".", ".."):
+        return None
+    if not base.endswith(".cfg"):
+        base += ".cfg"
+    if base != os.path.basename(base):
+        return None
+    return base
+
+
+def _config_path(name):
+    safe = _safe_config_name(name)
+    if not safe:
+        return None
+    return os.path.join(CONFIGS_DIR, safe)
+
+
+def _config_target(name):
+    return "cv" if name == CV_CONFIG_NAME else "resume"
+
+
+def ensure_configs_dir():
+    os.makedirs(CONFIGS_DIR, exist_ok=True)
+
+
+def list_config_files():
+    ensure_configs_dir()
+    names = []
+    for entry in os.listdir(CONFIGS_DIR):
+        if entry.endswith(".cfg") and os.path.isfile(os.path.join(CONFIGS_DIR, entry)):
+            names.append(entry)
+    return sorted(names)
+
+
+def read_config_file(name):
+    path = _config_path(name)
+    if not path or not os.path.isfile(path):
+        return None
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def write_config_file(name, content):
+    path = _config_path(name)
+    if not path:
+        raise ValueError("Invalid config filename")
+    ensure_configs_dir()
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content or "")
+
+
+def delete_config_file(name):
+    safe = _safe_config_name(name)
+    if not safe or safe in PROTECTED_CONFIGS:
+        return False
+    path = os.path.join(CONFIGS_DIR, safe)
+    if not os.path.isfile(path):
+        return False
+    os.remove(path)
+    return True
+
+
+@app.route("/api/configs", methods=["GET", "POST", "OPTIONS"])
+def configs_collection():
+    if request.method == "OPTIONS":
+        return "", 204
+    if request.method == "GET":
+        files = []
+        for name in list_config_files():
+            files.append({
+                "name": name,
+                "target": _config_target(name),
+                "readonly": name in PROTECTED_CONFIGS,
+            })
+        return jsonify({"files": files})
+
+    data = request.get_json(force=True) or {}
+    name = data.get("name", "")
+    content = data.get("content", "")
+    safe = _safe_config_name(name)
+    if not safe:
+        return jsonify({"error": "Invalid config filename"}), 400
+    path = _config_path(safe)
+    if os.path.exists(path):
+        return jsonify({"error": f"{safe} already exists"}), 409
+    try:
+        write_config_file(safe, content)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"name": safe, "target": _config_target(safe), "readonly": safe in PROTECTED_CONFIGS})
+
+
+@app.route("/api/configs/<path:filename>", methods=["GET", "PUT", "DELETE", "OPTIONS"])
+def config_file(filename):
+    if request.method == "OPTIONS":
+        return "", 204
+    safe = _safe_config_name(filename)
+    if not safe:
+        return jsonify({"error": "Invalid config filename"}), 400
+
+    if request.method == "GET":
+        content = read_config_file(safe)
+        if content is None:
+            return jsonify({"error": f"{safe} not found"}), 404
+        return jsonify({
+            "name": safe,
+            "content": content,
+            "target": _config_target(safe),
+            "readonly": safe in PROTECTED_CONFIGS,
+        })
+
+    if request.method == "PUT":
+        if safe in PROTECTED_CONFIGS:
+            return jsonify({"error": f"{safe} is read-only"}), 403
+        data = request.get_json(force=True) or {}
+        try:
+            write_config_file(safe, data.get("content", ""))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify({"name": safe, "target": _config_target(safe), "readonly": False})
+
+    if safe in PROTECTED_CONFIGS:
+        return jsonify({"error": f"{safe} cannot be deleted"}), 403
+    if not delete_config_file(safe):
+        return jsonify({"error": f"{safe} not found"}), 404
+    return jsonify({"deleted": safe})
+
 if __name__ == "__main__":
     register_charter_fonts()
+    ensure_configs_dir()
     ensure_cv_pdf()
     port = 5000
     print(f"[server] Starting on http://localhost:{port}")

@@ -156,14 +156,14 @@
 
 <script>
 // ─── State ───
-const INDUSTRY_TAGS = ["quant","systems","ai_ml","software_engineering","formal_methods"];
-const PROJECT_IDS = ["malloc","audio_relay","squishy","lean4game","sigecom","fin_eng"];
+const INDUSTRY_TAGS = ["systems","networking","ai_ml","formal_methods","fullstack","math","pedagogy"];
+const PROJECT_IDS = ["malloc","pragma","logana","audio_relay","squishy","lean4game","sigecom","fin_eng"];
 
 const NEW_CFG_TEMPLATE = `# Resume Configuration
 # Edit filters, press ▶ Run to generate PDF
 # Ordered selectors are honored top-to-bottom.
-industry=[quant, systems, ai_ml]
-projects=[malloc, squishy]
+industry=[systems, ai_ml, networking]
+projects=[malloc, audio_relay]
 
 include_projects=true
 min_bullets=1
@@ -171,113 +171,10 @@ max_bullets=3
 title=My Resume
 `;
 
-// Bundled presets — used on Vercel / anywhere the configs API is unavailable.
+// Bundled fallback — used when the configs API is unavailable.
 const BUNDLED_CFG_FILES = {
-  "cv.cfg": {
-    target: "cv",
-    content: `# Full CV ordering instructions
-# This file hits /api/compile-cv so you can reorder the entire project list.
-# List project IDs in the order you want them to appear; duplicates are removed.
-projects=[malloc, audio_relay, squishy, lean4game, sigecom, fin_eng]
-include_projects=true
-min_bullets=1
-max_bullets=3
-earliest_start_date=2024
-earliest_end_date=2024
-`,
-  },
-  "quant_resume.cfg": {
-    content: `# Resume Configuration
-# Edit filters, press ▶ Run to generate PDF
-# Ordered selectors are honored top-to-bottom.
-industry=[quant, systems, ai_ml]
-projects=[malloc, squishy]
-
-# Optional:
-include_projects=true
-min_bullets=1
-max_bullets=3
-title=Advayth Pashupati — Quant Resume
-`,
-  },
-  "systems_resume.cfg": {
-    content: `# Systems-focused
-projects=[malloc, audio_relay]
-industry=[systems, quant]
-include_projects=true
-min_bullets=1
-max_bullets=3
-`,
-  },
-  "ai_resume.cfg": {
-    content: `# AI/ML-focused
-projects=[squishy, malloc]
-industry=[ai_ml, software_engineering, quant]
-include_projects=true
-min_bullets=1
-max_bullets=3
-`,
-  },
-  "formal_resume.cfg": {
-    content: `# Formal Methods focused
-projects=[lean4game, squishy]
-industry=[formal_methods, ai_ml, systems]
-include_projects=true
-min_bullets=1
-max_bullets=3
-`,
-  },
-  "pedagogy.cfg": {
-    content: `# UIUC CS 341 course assistant
-projects=[lean4game, malloc, audio_relay]
-industry=[formal_methods, systems]
-include_projects=true
-min_bullets=2
-max_bullets=3
-earliest_start_date=2021
-earliest_end_date=2021
-`,
-  },
-  "README.cfg": {
-    readonly: true,
-    content: `# ═══════════════════════════════════════
-#  Resume Generator — Reference
-# ═══════════════════════════════════════
-#
-# SYNTAX:
-#   key=value           (single value)
-#   key=[a, b, c]       (list)
-#   # comment           (ignored)
-#
-# ── KEYS ─────────────────────────────
-#
-# industry=[...]
-#   quant, systems, ai_ml,
-#   software_engineering,
-#   formal_methods
-#
-# projects=[...]
-#   malloc, audio_relay, squishy,
-#   lean4game, sigecom, fin_eng
-#   Explicit projects are added in the
-#   order listed.
-#
-# ORDERING:
-#   If projects comes before industry,
-#   those projects appear first.
-#   If industry comes first, industry
-#   picks fill first, then projects.
-#   Duplicates are automatically removed.
-#
-# include_projects=true|false
-# min_bullets=N
-# max_bullets=N
-# title=My Resume Title
-#   PDF document metadata title (browser tab /
-#   PDF reader title bar). Defaults to
-#   {name} - {filename} when omitted.
-# 
-`,
+  "example.cfg": {
+    content: NEW_CFG_TEMPLATE,
   },
 };
 
@@ -319,7 +216,7 @@ function cfgMeta(name, bundled) {
   return {
     type: "cfg",
     content: bundled.content,
-    target: bundled.target || (name === "cv.cfg" ? "cv" : "resume"),
+    target: bundled.target || "resume",
     readonly: !!bundled.readonly,
   };
 }
@@ -431,7 +328,7 @@ async function createConfigFile(name) {
   const entry = {
     type: "cfg",
     content: NEW_CFG_TEMPLATE,
-    target: name === "cv.cfg" ? "cv" : "resume",
+    target: "resume",
     readonly: false,
   };
   if (persistConfigs) {
@@ -459,7 +356,7 @@ async function createConfigFile(name) {
 
 function deleteFile(name, ev) {
   ev.stopPropagation();
-  if (name === "cv.pdf" || name === "README.cfg") return;
+  if (name === "cv.pdf") return;
   deleteConfigFile(name);
 }
 
@@ -499,7 +396,6 @@ async function fetchCvPdf() {
 async function compileConfig() {
   const file = files[activeFile];
   if (!file || file.type !== "cfg") { log("error", "No .cfg file active."); return; }
-  if (activeFile === "README.cfg") { log("warn", "README.cfg is reference-only."); return; }
 
   // Capture live editor text before render() tears down the textarea.
   const configText = getActiveConfigText();
@@ -598,8 +494,8 @@ async function render() {
   const fl = document.getElementById("file-list");
   fl.innerHTML = Object.keys(files).map(name => {
     const icon = name.endsWith(".pdf") ? "◆" : "◇";
-    const iconColor = name.endsWith(".pdf") ? "var(--red)" : name === "README.cfg" ? "var(--blue)" : "var(--green)";
-    const canDelete = name !== "cv.pdf" && name !== "README.cfg";
+    const iconColor = name.endsWith(".pdf") ? "var(--red)" : "var(--green)";
+    const canDelete = name !== "cv.pdf";
     const deleteBtn = canDelete ? `<span class="file-delete" onclick="deleteFile('${name}', event)">✕</span>` : "";
     return `<div class="file-item ${activeFile === name ? 'active' : ''}" onclick="openFile('${name}')">
       <span style="display:flex;align-items:center;gap:6px"><span class="file-icon" style="color:${iconColor}">${icon}</span>${escapeHtml(name)}</span>
@@ -628,7 +524,7 @@ async function render() {
   const ta = document.getElementById("tab-actions");
   let actions = "";
   if (activeFile === "cv.pdf" || activeFile === "__gen__") actions = "";
-    if (activeFile && files[activeFile]?.type === "cfg" && activeFile !== "README.cfg") {
+    if (activeFile && files[activeFile]?.type === "cfg") {
       actions += `<button class="btn btn-run" onclick="compileConfig()" ${compiling ? 'disabled' : ''}>▶ Run</button>`;
   }
   ta.innerHTML = actions;
@@ -704,7 +600,7 @@ async function render() {
     ta2.addEventListener("keydown", e => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        if (activeFile !== "README.cfg") compileConfig();
+        if (activeFile !== "cv.pdf") compileConfig();
       }
       // Tab key inserts spaces
       if (e.key === "Tab") {

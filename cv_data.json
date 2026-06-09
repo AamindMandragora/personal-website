@@ -8,7 +8,7 @@
   "education": {
     "school": "University of Illinois at Urbana-Champaign",
     "dates": "Aug 2025 -- May 2028",
-    "degree": "B.S. in Mathematics (Technical GPA: 4.0, Overall GPA: 3.98); Honors: James Scholar, Dean's List",
+    "degree": "B.S. in Mathematics (Technical GPA: 4.0, Overall GPA: 3.99); Honors: James Scholar, Dean's List x2",
     "coursework": [
       "Abstract Algebra",
       "Number Theory",
@@ -24,14 +24,14 @@
     "coursework_tags": [
       { "name": "System Programming", "tags": ["systems"] },
       { "name": "Computer Architecture", "tags": ["systems"] },
-      { "name": "Data Structures", "tags": ["software_engineering", "systems"] },
-      { "name": "Abstract Algebra", "tags": ["formal_methods"] },
-      { "name": "Number Theory", "tags": ["formal_methods"] },
-      { "name": "Abstract Linear Algebra", "tags": ["formal_methods"] },
-      { "name": "Discrete Structures", "tags": ["formal_methods"] },
-      { "name": "Statistics & Probability", "tags": ["quant", "ai_ml"] },
-      { "name": "Differential Equations", "tags": ["quant"] },
-      { "name": "Computational Science", "tags": ["software_engineering"] }
+      { "name": "Data Structures", "tags": ["systems"] },
+      { "name": "Abstract Algebra", "tags": ["math"] },
+      { "name": "Number Theory", "tags": ["math"] },
+      { "name": "Abstract Linear Algebra", "tags": ["math"] },
+      { "name": "Discrete Structures", "tags": ["math"] },
+      { "name": "Statistics & Probability", "tags": ["math", "ai_ml"] },
+      { "name": "Differential Equations", "tags": ["math"] },
+      { "name": "Computational Science", "tags": ["fullstack"] }
     ]
   },
   "awards": [
@@ -50,7 +50,7 @@
     },
     {
       "name": "Python",
-      "tags": ["software_engineering", "ai_ml"]
+      "tags": ["ai_ml", "fullstack"]
     },
     {
       "name": "C++",
@@ -61,8 +61,12 @@
       "tags": ["systems"]
     },
     {
+      "name": "Go",
+      "tags": ["systems", "ai_ml"]
+    },
+    {
       "name": "Verilog",
-      "tags": ["systems", "hardware"]
+      "tags": ["systems"]
     },
     {
       "name": "Rust",
@@ -70,19 +74,19 @@
     },
     {
       "name": "SQL",
-      "tags": ["software_engineering"]
+      "tags": ["fullstack"]
     },
     {
       "name": "React",
-      "tags": ["software_engineering"]
+      "tags": ["fullstack"]
     },
     {
       "name": "TypeScript",
-      "tags": ["software_engineering"]
+      "tags": ["fullstack"]
     },
     {
       "name": "HTML/CSS/JS",
-      "tags": ["software_engineering"]
+      "tags": ["fullstack"]
     }
   ],
   "tools": [
@@ -101,14 +105,12 @@
       "subtitle": "Formal Verification \\& Verified LLM Decoding Research",
       "dates": "Sept 2025 -- Present",
       "tags": [
-        "formal_verification",
-        "ml",
-        "dafny",
-        "python"
+        "formal_methods",
+        "ai_ml"
       ],
       "bullets": [
         "Co-developed a verified constrained-decoding library in **Dafny** (over **1,900** lines) with **60+** cost-bounded CSD helpers. Pre/postconditions gate LLM-synthesized strategies before **Python** compilation.",
-        "Integrated verify→compile→evaluate on **GSM-Symbolic**, **Spider**, and **SMILES**. Ran factorial studies across **4** HuggingFace evaluators (**Qwen** 1.5B/7B/14B, **Llama 3.1** 8B).",
+        "Integrated verification, compilation, and evaluation on **GSM-Symbolic**, **Spider**, and **SMILES**. Ran factorial studies across **4** HuggingFace evaluators (**Qwen** 1.5B/7B/14B, **Llama 3.1** 8B).",
         "Architected unified legacy adapters, stratified **100-example** splits, and syntax-annotated scoring. Compared **100+** configurations against CRANE, IterGen, CARS, and GCD to set **MetaDecode** stopping criteria."
       ]
     }
@@ -120,10 +122,8 @@
       "subtitle": "Generative AI Platform \\& Workflow Automation Intern",
       "dates": "June 2024 -- Aug 2024",
       "tags": [
-        "swe",
-        "python",
-        "sql",
-        "ml"
+        "fullstack",
+        "ai_ml"
       ],
       "bullets": [
         "Built a **Streamlit** UI enabling CRUD operations for **300+** JSON configuration files used by an internal Generative AI API and migrated **300+** prompt templates into a **PostgreSQL** database.",
@@ -137,12 +137,11 @@
       "dates": "Aug 2023 -- May 2025",
       "tags": [
         "pedagogy",
-        "math",
-        "cs"
+        "math"
       ],
       "bullets": [
-        "Held **4+ open office hours per week** for **15+ students**, covering every **math and CS course** offered (Advanced Programming, Object Oriented Programming, etc.) and adapting explanations to each learner's prerequisites.",
         "Ran **2 additional hours per week** of dedicated **advanced math support** (Abstract Algebra, Number Theory), walking students through **undergraduate-level proofs** and frameworks beyond the scope of standard coursework, as well as grading weekly assignments and providing feedback for **40+** students.",
+        "Held **4+ open office hours per week** for **15+ students**, covering every **math and CS course** offered (Advanced Programming, Object Oriented Programming, etc.) and adapting explanations to each learner's prerequisites.",
         "Tutored supplementary subjects including **AP Chemistry** and **French**, broadening access to on-demand academic support across IMSA's STEM and humanities curriculum."
       ]
     },
@@ -152,9 +151,7 @@
       "subtitle": "President \\& CS Coordinator",
       "dates": "Aug 2023 -- May 2025",
       "tags": [
-        "pedagogy",
-        "cs",
-        "math"
+        "pedagogy"
       ],
       "bullets": [
         "Led weekly **USACO study sessions** for **20+ members**, breaking down **competitive algorithms and data structures** (binary search, monotonic stacks, BFS/DFS) into step-by-step implementation walkthroughs.",
@@ -165,35 +162,45 @@
   ],
   "projects": [
     {
-      "id": "lean4game",
-      "name": "Abstract Algebra, the Game",
-      "subtitle": "Interactive Lean4 Proof Game",
-      "tags": [
-        "formal_verification",
-        "math",
-        "lean4",
-        "pedagogy"
-      ],
-      "bullets": [
-        "Developing an interactive **Lean4** proof game hosted on the Lean Game Server comprising **2 worlds** and **24 levels** that teach group theory through guided theorem proving, covering abelian groups, subgroups, and normal subgroups.",
-        "Formalized **1,200+** lines of Lean4 encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, subgroup intersection, and the one-step subgroup test, building a notation-agnostic `MyGroup` typeclass.",
-        "Designed progressive level sequences that decompose **formalized proofs** into **structured learning blocks**, with layered hints and narrative annotations guiding players from basic group axioms to advanced subgroup characterizations."
-      ]
-    },
-    {
       "id": "malloc",
       "name": "Two-Level Segregated Fit Malloc",
       "subtitle": "High-Performance Memory Allocation",
       "tags": [
-        "systems",
-        "c",
-        "cpp",
-        "quant_dev"
+        "systems"
       ],
       "bullets": [
         "Developed a custom memory allocator (malloc, calloc, realloc, free) in pure **C**, outperforming glibc by up to **100\\%** in throughput and achieving over **300\\%** memory reduction on select test cases, placing **3rd out of ~300** students.",
-        "Designed a **two-level segregated fit** (TLSF) allocator utilizing **128-bit** bitmask free-list indexing, localized arena allocation, and a deferred-free cache to optimize repeated alloc/free patterns.",
-        "Engineered aggressive block-level optimizations, including compressed **32-bit** pointers, boundary-tag coalescing with footer elision, and flag-encoded headers for **O(1)** neighbor status verification."
+        "Engineered aggressive block-level optimizations, including compressed **32-bit** pointers, boundary-tag coalescing with footer elision, and flag-encoded headers for **O(1)** neighbor status verification.",
+        "Designed a **two-level segregated fit** (TLSF) allocator utilizing **128-bit** bitmask free-list indexing, localized arena allocation, and a deferred-free cache to optimize repeated alloc/free patterns."
+      ]
+    },
+    {
+      "id": "pragma",
+      "name": "Pragma",
+      "subtitle": "Provider-Agnostic Agentic Coding Framework",
+      "tags": [
+        "ai_ml",
+        "systems"
+      ],
+      "bullets": [
+        "Built a terminal-based coding agent in **Go** with a multi-provider LLM adapter supporting **OpenAI**, **Anthropic**, and **OpenRouter**, featuring both native and text-based tool calling with automatic provider detection.",
+        "Designed a cost budgeting system with per-task token tracking, a pricing table with fuzzy model matching, and automatic model tiering that cascades across providers, switching to cheaper models as budget thresholds are hit.",
+        "Engineered an event-driven async process manager with disk-backed output buffering, timeout enforcement, platform-agnostic process tree killing, and output filtering that extracts compiler errors from large build logs to minimize token usage.",
+        "Implemented auto-generated design docs and a living architecture document with diff-based incremental updates, providing persistent session memory across agent restarts."
+      ]
+    },
+    {
+      "id": "logana",
+      "name": "Logana",
+      "subtitle": "Privacy-First Encrypted Messaging Platform",
+      "tags": [
+        "networking",
+        "systems"
+      ],
+      "bullets": [
+        "Architecting a **C++20** end-to-end encrypted group messaging platform with a relay-based architecture comprising chunked deque message storage, a device registry, tag-based message routing, and permission-gated fan-out.",
+        "Designed a store-and-ref message pipeline where the relay router performs permission checks, stores messages in per-account **chunked deque** containers with lazy construction, and fans out to connected devices via callback.",
+        "Implementing TCP transport with **io\\_uring** for high-throughput async I/O, with a typed alias system and forward-compatible protocol design targeting a two-instance CLI demo as the first milestone."
       ]
     },
     {
@@ -201,16 +208,13 @@
       "name": "Asynchronous Audio Relay",
       "subtitle": "Low-Latency Concurrent Systems \\& Networking",
       "tags": [
-        "systems",
-        "c",
-        "cpp",
         "networking",
-        "quant_dev"
+        "systems"
       ],
       "bullets": [
         "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX sockets** and per-peer **pthreads** to isolate connection state, replacing a single-threaded poll loop that serialized concurrent sessions and amplified head-of-line blocking.",
-        "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, eliminating mutex contention on the hot path versus a mutex-backed prototype that introduced measurable tail latency under load.",
-        "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, demonstrating that store-and-forward relay semantics need not trade away interactive responsiveness."
+        "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, demonstrating that store-and-forward relay semantics need not trade away interactive responsiveness.",
+        "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, eliminating mutex contention on the hot path versus a mutex-backed prototype that introduced measurable tail latency under load."
       ]
     },
     {
@@ -218,15 +222,27 @@
       "name": "Squishy.ai",
       "subtitle": "LLM-Driven Soft Robotics Simulation Platform",
       "tags": [
-        "swe",
-        "ml",
-        "python",
-        "hackathon"
+        "fullstack",
+        "ai_ml"
       ],
       "bullets": [
-        "Built a full-stack platform that translates natural language into executable soft robotics physics simulations via PyElastica (Cosserat rod theory), placing **3rd** on the TRAE track among **200+** participants.",
+        "Built a full-stack platform that translates natural language into executable soft robotics physics simulations via PyElastica (Cosserat rod theory), placing **3rd** at the Keywords AI (now Respan) hackathon among **200+** participants.",
         "Architected a high-performance **FastAPI** backend utilizing Numba JIT compilation, coupled with a headless Matplotlib and FFmpeg rendering pipeline for end-to-end simulation generation in **under 20 seconds**.",
         "Developed an interactive **React/Vite** frontend featuring real-time simulation visualization and LLM-routed code generation through the Keywords AI gateway."
+      ]
+    },
+    {
+      "id": "lean4game",
+      "name": "Abstract Algebra, the Game",
+      "subtitle": "Interactive Lean4 Proof Game",
+      "tags": [
+        "formal_methods",
+        "pedagogy"
+      ],
+      "bullets": [
+        "Developed an interactive **Lean4** proof game hosted on the Lean Game Server comprising **2 worlds** and **24 levels** that teach group theory through guided theorem proving, covering abelian groups, subgroups, and normal subgroups.",
+        "Formalized **1,200+** lines of Lean4 encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, subgroup intersection, and the one-step subgroup test, building a notation-agnostic `MyGroup` typeclass.",
+        "Designed progressive level sequences that decompose **formalized proofs** into **structured learning blocks**, with layered hints and narrative annotations guiding players from basic group axioms to advanced subgroup characterizations."
       ]
     },
     {
@@ -234,10 +250,8 @@
       "name": "SIGEcom",
       "subtitle": "Systematic Trading Strategy Research \\& Simulation",
       "tags": [
-        "quant_dev",
-        "python",
-        "trading",
-        "finance"
+        "math",
+        "ai_ml"
       ],
       "bullets": [
         "Designed, backtested, and deployed **multi-asset algorithmic trading strategies** in Python, utilizing SMA, EMA+RSI, MACD, and statistical arbitrage approaches across **6 symbols**.",
@@ -250,14 +264,12 @@
       "name": "Financial Engineering",
       "subtitle": "Quantitative Options Pricing \\& ML-Based Volatility Modeling",
       "tags": [
-        "quant_dev",
-        "python",
-        "finance",
-        "ml"
+        "math",
+        "ai_ml"
       ],
       "bullets": [
-        "Implemented the **Cox-Ross-Rubinstein** binomial model in Python to price European and American options, verifying convergence toward Black-Scholes benchmark values.",
         "Leveraged **neural network de-Americanization** techniques to convert market American option prices into equivalent European prices, enabling **accurate implied volatility** computation.",
+        "Implemented the **Cox-Ross-Rubinstein** binomial model in Python to price European and American options, verifying convergence toward Black-Scholes benchmark values.",
         "Analyzed **early exercise boundaries** and computational efficiency across various market regimes to optimize pricing accuracy."
       ]
     }

@@ -29,8 +29,7 @@ CV_JSON_PATH = os.path.join(BASE_DIR, "cv_data.json")
 CONFIGS_DIR = os.path.join(BASE_DIR, "configs")
 FONTS_DIR = os.path.join(BASE_DIR, "fonts")
 INDEX_HTML_PATH = os.path.join(BASE_DIR, "static", "index.html")
-PROTECTED_CONFIGS = {"README.cfg"}
-CV_CONFIG_NAME = "cv.cfg"
+PROTECTED_CONFIGS = set()
 
 # ─── CORS (no flask-cors needed) ───
 def add_cors(response):
@@ -209,29 +208,29 @@ def _order_section(values, tagged_items, resolved_industries):
     return ordered or normalized_values
 
 INDUSTRY_TAGS = {
-    "quant": {"quant_dev", "trading", "finance"},
-    "systems": {"systems", "networking", "hardware"},
-    "ai_ml": {"ml", "swe"},
-    "software_engineering": {"swe", "ml"},
-    "formal_methods": {"formal_verification", "math", "lean4", "dafny", "pedagogy"},
+    "systems": {"systems"},
+    "networking": {"networking"},
+    "ai_ml": {"ai_ml"},
+    "formal_methods": {"formal_methods"},
+    "fullstack": {"fullstack"},
+    "math": {"math"},
+    "pedagogy": {"pedagogy"},
 }
 
 INDUSTRY_ALIASES = {
-    "quant_dev": "quant",
-    "trading": "quant",
-    "finance": "quant",
     "systems": "systems",
-    "networking": "systems",
-    "hardware": "systems",
-    "ml": "ai_ml",
+    "os_dev": "systems",
+    "networking": "networking",
     "ai": "ai_ml",
-    "swe": "software_engineering",
+    "ml": "ai_ml",
+    "ai_ml": "ai_ml",
+    "formal_methods": "formal_methods",
     "formal_verification": "formal_methods",
-    "math": "formal_methods",
-    "lean4": "formal_methods",
-    "dafny": "formal_methods",
-    "pedagogy": "formal_methods",
-    "hackathon": "software_engineering",
+    "fullstack": "fullstack",
+    "swe": "fullstack",
+    "math": "math",
+    "pure_math": "math",
+    "pedagogy": "pedagogy",
 }
 
 # ─── Config parsing ───
@@ -558,13 +557,20 @@ def _estimate_bullet_line_count(c, bullet, content_w):
     return max(1, len(wrap_bolded_lines(c, bullet, 10.2, content_w - 20)))
 
 
-def _estimate_entry_height(c, item, content_w):
-    title_line = sv(16)
-    total = title_line + sv(6)
+def _entry_content_height(c, item, content_w):
+    """Ink height for an entry; trailing gap is excluded from keep-together checks."""
+    total = sv(16)
     for bullet in item.get("bullets", []):
         total += sv(15) * _estimate_bullet_line_count(c, bullet, content_w)
-    total += sv(12)
     return total
+
+
+def _estimate_entry_height(c, item, content_w):
+    return _entry_content_height(c, item, content_w) + sv(8)
+
+
+def _entry_fits_together(c, item, y, content_w):
+    return (y - _entry_content_height(c, item, content_w)) >= BOTTOM
 
 
 def _item_with_bullets(item, bullet_count):
@@ -573,10 +579,24 @@ def _item_with_bullets(item, bullet_count):
     return {**item, "bullets": item.get("bullets", [])[:bullet_count]}
 
 
-def _layout_bottom_y(c, items, bullet_counts, start_y, content_w):
+def _layout_content_bottom_y(c, items, bullet_counts, start_y, content_w):
+    """Simulate draw cursor; final value is the ink bottom (before last trailing gap)."""
     y = start_y
     for item, bullet_count in zip(items, bullet_counts):
-        y -= _estimate_entry_height(c, _item_with_bullets(item, bullet_count), content_w)
+        candidate = _item_with_bullets(item, bullet_count)
+        if not _entry_fits_together(c, candidate, y, content_w):
+            return BOTTOM - 1
+        y -= _estimate_entry_height(c, candidate, content_w)
+    return y + sv(8)
+
+
+def _layout_bottom_y(c, items, bullet_counts, start_y, content_w, keep_entry_together=False):
+    y = start_y
+    for item, bullet_count in zip(items, bullet_counts):
+        candidate = _item_with_bullets(item, bullet_count)
+        if keep_entry_together and not _entry_fits_together(c, candidate, y, content_w):
+            return BOTTOM - 1
+        y -= _estimate_entry_height(c, candidate, content_w)
     return y
 
 
@@ -595,7 +615,7 @@ def _plan_one_page_layout(c, items, start_y, min_bullets, max_bullets, content_w
     lo = max(1, min_bullets) if min_bullets is not None else 1
 
     def fits(subset, counts):
-        return _layout_bottom_y(c, subset, counts, start_y, content_w) >= BOTTOM
+        return _layout_content_bottom_y(c, subset, counts, start_y, content_w) >= BOTTOM
 
     for item_count in range(len(items), 0, -1):
         subset = items[:item_count]
@@ -623,23 +643,43 @@ def _plan_one_page_layout(c, items, start_y, min_bullets, max_bullets, content_w
                         changed = True
                         break
 
+        # Prefer trailing entries when slack remains: shift a bullet forward
+        # from an earlier item if the page still fits.
+        shifted = True
+        while shifted:
+            shifted = False
+            for later in range(item_count - 1, 0, -1):
+                if counts[later] >= caps[later]:
+                    continue
+                for earlier in range(later):
+                    if counts[earlier] <= lo:
+                        continue
+                    trial = counts[:]
+                    trial[earlier] -= 1
+                    trial[later] += 1
+                    if fits(subset, trial):
+                        counts = trial
+                        shifted = True
+                        break
+                if shifted:
+                    break
+
         return list(zip(subset, counts))
 
     first = items[0]
     cap = _per_item_bullet_cap(first, max_bullets)
     for count in range(cap, lo - 1, -1):
-        if _layout_bottom_y(c, [first], [count], start_y, content_w) >= BOTTOM:
+        if _layout_content_bottom_y(c, [first], [count], start_y, content_w) >= BOTTOM:
             return [(first, count)]
     return [(first, lo)]
 
 
 def _draw_single_entry(c, candidate, y, left, right, content_w, allow_new_page, keep_entry_together):
-    needed = _estimate_entry_height(c, candidate, content_w)
     if keep_entry_together:
-        if (y - needed) < BOTTOM:
+        if not _entry_fits_together(c, candidate, y, content_w):
             if not allow_new_page:
                 return y, False
-            y = maybe_new_page(c, y, needed + sv(10))
+            y = maybe_new_page(c, y, _estimate_entry_height(c, candidate, content_w) + sv(10))
     elif (y - sv(28)) < BOTTOM:
         if not allow_new_page:
             return y, False
@@ -964,7 +1004,7 @@ def _config_path(name):
 
 
 def _config_target(name):
-    return "cv" if name == CV_CONFIG_NAME else "resume"
+    return "resume"
 
 
 def ensure_configs_dir():

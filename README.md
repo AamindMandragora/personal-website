@@ -42,13 +42,13 @@ Then open `http://localhost:5000`.
 
 ```cfg
 # Ordered selectors are honored top-to-bottom.
-projects=[malloc, squishy]
-industry=[systems, ai_ml]
+projects=[malloc, audio_relay]
+industry=[systems, ai_ml, networking]
 
 include_projects=true
 min_bullets=1
 max_bullets=3
-title=Quant Resume
+title=Systems Resume
 ```
 
 Supported keys:
@@ -66,11 +66,13 @@ By default the résumé generator (including the precompiled CV) filters experie
 
 Built-in industry tags:
 
-- `quant`
-- `systems`
-- `ai_ml`
-- `software_engineering`
-- `formal_methods`
+- `systems` — low-level C/C++, allocators, concurrency, system programming
+- `networking` — sockets, relays, messaging protocols
+- `ai_ml` — ML, LLMs, agents, generative AI
+- `formal_methods` — verification, Lean4, Dafny, proof assistants
+- `fullstack` — web apps, APIs, React, FastAPI
+- `math` — pure math background, stats, modeling
+- `pedagogy` — tutoring, teaching, educational tools
 
 Project IDs come from the entries in `cv_data.json` and are also listed in the sidebar of the frontend.
 
@@ -101,7 +103,7 @@ personal-website/
 ├── server.py
 ├── cv_data.json
 ├── cv.pdf
-├── configs/          # .cfg resume presets (loaded by the browser IDE)
+├── configs/          # example.cfg resume preset (loaded by the browser IDE)
 ├── requirements.txt
 ├── fonts/
 └── static/
@@ -135,7 +137,7 @@ If you want to turn this into your own resume generator, the main workflow is:
 
 1. Fork the repo.
 2. Replace the contents of `cv_data.json`.
-3. Rename the built-in `.cfg` presets if you want.
+3. Copy `configs/example.cfg` as a starting point for tailored resumes.
 4. Add your own project IDs in `cv_data.json`, and update the industry tag mappings in `server.py` if you want different filtering buckets.
 5. Regenerate `cv.pdf` and start tailoring resumes.
 

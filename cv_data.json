@@ -8,7 +8,7 @@
   "education": {
     "school": "University of Illinois at Urbana-Champaign",
     "dates": "Aug 2025 -- May 2028",
-    "degree": "B.S. in Mathematics (Technical GPA: 4.0, Overall GPA: 3.99); Honors: James Scholar, Dean's List x2",
+    "degree": "B.S. in Mathematics and Computer Science (Technical GPA: 4.0, Overall GPA: 3.99); Honors: James Scholar, Dean's List x2",
     "coursework": [
       "Abstract Algebra",
       "Number Theory",
@@ -18,75 +18,215 @@
       "Differential Equations",
       "Data Structures",
       "Computer Architecture",
-      "System Programming",
+      "Systems Programming",
+      "Algorithms",
+      "Distributed Systems",
+      "High Frequency Trading",
       "Computational Science"
     ],
     "coursework_tags": [
-      { "name": "System Programming", "tags": ["systems"] },
-      { "name": "Computer Architecture", "tags": ["systems"] },
-      { "name": "Data Structures", "tags": ["systems"] },
-      { "name": "Abstract Algebra", "tags": ["math"] },
-      { "name": "Number Theory", "tags": ["math"] },
-      { "name": "Abstract Linear Algebra", "tags": ["math"] },
-      { "name": "Discrete Structures", "tags": ["math"] },
-      { "name": "Statistics & Probability", "tags": ["math", "ai_ml"] },
-      { "name": "Differential Equations", "tags": ["math"] },
-      { "name": "Computational Science", "tags": ["fullstack"] }
+      {
+        "name": "Systems Programming",
+        "tags": [
+          "systems"
+        ]
+      },
+      {
+        "name": "Computer Architecture",
+        "tags": [
+          "systems"
+        ]
+      },
+      {
+        "name": "Data Structures",
+        "tags": [
+          "systems"
+        ]
+      },
+      {
+        "name": "Algorithms",
+        "tags": [
+          "systems",
+          "math"
+        ]
+      },
+      {
+        "name": "Distributed Systems",
+        "tags": [
+          "systems",
+          "networking"
+        ]
+      },
+      {
+        "name": "High Frequency Trading",
+        "tags": [
+          "quant_finance",
+          "systems"
+        ]
+      },
+      {
+        "name": "Abstract Algebra",
+        "tags": [
+          "math"
+        ]
+      },
+      {
+        "name": "Number Theory",
+        "tags": [
+          "math"
+        ]
+      },
+      {
+        "name": "Abstract Linear Algebra",
+        "tags": [
+          "math"
+        ]
+      },
+      {
+        "name": "Discrete Structures",
+        "tags": [
+          "math"
+        ]
+      },
+      {
+        "name": "Statistics & Probability",
+        "tags": [
+          "math",
+          "ai_ml"
+        ]
+      },
+      {
+        "name": "Differential Equations",
+        "tags": [
+          "math"
+        ]
+      },
+      {
+        "name": "Computational Science",
+        "tags": [
+          "fullstack"
+        ]
+      }
     ]
   },
   "awards": [
+    "YC Startup School 2026",
+    "Keywords AI Hackathon 2025 Winner",
     "American Invitational Mathematics Exam (AIME) Qualifier",
     "USACO Silver Division",
     "Quiz Bowl Nationals"
   ],
+  "award_tags": [
+    {
+      "name": "YC Startup School 2026",
+      "tags": [
+        "ai_ml",
+        "fullstack"
+      ]
+    },
+    {
+      "name": "Keywords AI Hackathon 2025 Winner",
+      "tags": [
+        "ai_ml",
+        "fullstack"
+      ]
+    },
+    {
+      "name": "American Invitational Mathematics Exam (AIME) Qualifier",
+      "tags": [
+        "math"
+      ]
+    },
+    {
+      "name": "USACO Silver Division",
+      "tags": [
+        "systems",
+        "math"
+      ]
+    },
+    {
+      "name": "Quiz Bowl Nationals",
+      "tags": [
+        "pedagogy",
+        "math"
+      ]
+    }
+  ],
   "language_tags": [
     {
       "name": "Lean4",
-      "tags": ["formal_methods"]
+      "tags": [
+        "formal_methods"
+      ]
     },
     {
       "name": "Dafny",
-      "tags": ["formal_methods"]
+      "tags": [
+        "formal_methods"
+      ]
     },
     {
       "name": "Python",
-      "tags": ["ai_ml", "fullstack"]
+      "tags": [
+        "ai_ml",
+        "fullstack"
+      ]
     },
     {
       "name": "C++",
-      "tags": ["systems"]
+      "tags": [
+        "systems",
+        "compilers"
+      ]
     },
     {
       "name": "C",
-      "tags": ["systems"]
+      "tags": [
+        "systems"
+      ]
     },
     {
       "name": "Go",
-      "tags": ["systems", "ai_ml"]
+      "tags": [
+        "systems",
+        "ai_ml"
+      ]
     },
     {
       "name": "Verilog",
-      "tags": ["systems"]
+      "tags": [
+        "systems"
+      ]
     },
     {
       "name": "Rust",
-      "tags": ["systems"]
+      "tags": [
+        "systems"
+      ]
     },
     {
       "name": "SQL",
-      "tags": ["fullstack"]
+      "tags": [
+        "fullstack"
+      ]
     },
     {
       "name": "React",
-      "tags": ["fullstack"]
+      "tags": [
+        "fullstack"
+      ]
     },
     {
       "name": "TypeScript",
-      "tags": ["fullstack"]
+      "tags": [
+        "fullstack"
+      ]
     },
     {
       "name": "HTML/CSS/JS",
-      "tags": ["fullstack"]
+      "tags": [
+        "fullstack"
+      ]
     }
   ],
   "tools": [
@@ -97,6 +237,52 @@
     "FastAPI",
     "AWS Bedrock",
     "Claude Code/Codex/Cursor"
+  ],
+  "tool_tags": [
+    {
+      "name": "Linux",
+      "tags": [
+        "systems"
+      ]
+    },
+    {
+      "name": "Tensorflow",
+      "tags": [
+        "ai_ml"
+      ]
+    },
+    {
+      "name": "NumPy",
+      "tags": [
+        "ai_ml",
+        "quant_finance"
+      ]
+    },
+    {
+      "name": "MongoDB",
+      "tags": [
+        "fullstack"
+      ]
+    },
+    {
+      "name": "FastAPI",
+      "tags": [
+        "fullstack",
+        "ai_ml"
+      ]
+    },
+    {
+      "name": "AWS Bedrock",
+      "tags": [
+        "ai_ml"
+      ]
+    },
+    {
+      "name": "Claude Code/Codex/Cursor",
+      "tags": [
+        "ai_ml"
+      ]
+    }
   ],
   "research": [
     {
@@ -109,13 +295,28 @@
         "ai_ml"
       ],
       "bullets": [
-        "Co-developed a verified constrained-decoding library in **Dafny** (over **1,900** lines) with **60+** cost-bounded CSD helpers. Pre/postconditions gate LLM-synthesized strategies before **Python** compilation.",
-        "Integrated verification, compilation, and evaluation on **GSM-Symbolic**, **Spider**, and **SMILES**. Ran factorial studies across **4** HuggingFace evaluators (**Qwen** 1.5B/7B/14B, **Llama 3.1** 8B).",
-        "Architected unified legacy adapters, stratified **100-example** splits, and syntax-annotated scoring. Compared **100+** configurations against CRANE, IterGen, CARS, and GCD to set **MetaDecode** stopping criteria."
+        "Building **MetaDecode**, a verified constrained-decoding synthesis pipeline comprising **2,700+** lines of **Dafny** with **60+** cost-bounded CSD helpers whose pre/postcondition contracts gate every LLM-synthesized strategy before **Python** transpilation.",
+        "Architected unified baseline adapters, stratified evaluation splits, and syntax-annotated scoring, benchmarking **100+** configurations against expert baselines to calibrate **MetaDecode** acceptance and early-stopping criteria.",
+        "Implemented generation, verification, compilation, and evaluation of CSDs across **GSM-Symbolic**, **Spider**, and **SMILES** benchmarks, running ablation studies over **Qwen3.5** evaluators (**2B/4B/9B**) with held-out comparisons against CRANE, IterGen, and CARS."
       ]
     }
   ],
   "experience": [
+    {
+      "id": "cs341",
+      "name": "University of Illinois at Urbana-Champaign",
+      "subtitle": "Systems Programming Course Assistant",
+      "dates": "Aug 2026 -- Present",
+      "tags": [
+        "systems",
+        "pedagogy"
+      ],
+      "bullets": [
+        "Leading weekly lab sessions for **30+ students** covering **processes, threads, synchronization, and memory management** in **C** on Linux.",
+        "Co-developing the **midterm and final exams** and editing the course reference book, aligning assessment content with systems programming learning objectives.",
+        "Guiding students one-on-one through debugging **C** implementations of **memory allocators, schedulers, TCP servers, and filesystems** during office hours."
+      ]
+    },
     {
       "id": "abbvie",
       "name": "AbbVie",
@@ -126,7 +327,7 @@
         "ai_ml"
       ],
       "bullets": [
-        "Built a **Streamlit** UI enabling CRUD operations for **300+** JSON configuration files used by an internal Generative AI API and migrated **300+** prompt templates into a **PostgreSQL** database.",
+        "Built a **Streamlit** interface for CRUD management of **300+** JSON configuration files powering an internal Generative AI API, and migrated **300+** prompt templates into **PostgreSQL**.",
         "Designed a modular configuration system enabling dynamic pipeline updates without code changes, reducing reconfiguration time from **hours to minutes** for internal AI workflows."
       ]
     },
@@ -140,7 +341,7 @@
         "math"
       ],
       "bullets": [
-        "Ran **2 additional hours per week** of dedicated **advanced math support** (Abstract Algebra, Number Theory), walking students through **undergraduate-level proofs** and frameworks beyond the scope of standard coursework, as well as grading weekly assignments and providing feedback for **40+** students.",
+        "Ran **2 weekly hours** of advanced math support covering **Abstract Algebra** and **Number Theory**, guiding students through **undergraduate-level proofs** and grading weekly problem sets for **40+** students.",
         "Held **4+ open office hours per week** for **15+ students**, covering every **math and CS course** offered (Advanced Programming, Object Oriented Programming, etc.) and adapting explanations to each learner's prerequisites.",
         "Tutored supplementary subjects including **AP Chemistry** and **French**, broadening access to on-demand academic support across IMSA's STEM and humanities curriculum."
       ]
@@ -169,9 +370,9 @@
         "systems"
       ],
       "bullets": [
-        "Developed a custom memory allocator (malloc, calloc, realloc, free) in pure **C**, outperforming glibc by up to **100\\%** in throughput and achieving over **300\\%** memory reduction on select test cases, placing **3rd out of ~300** students.",
-        "Engineered aggressive block-level optimizations, including compressed **32-bit** pointers, boundary-tag coalescing with footer elision, and flag-encoded headers for **O(1)** neighbor status verification.",
-        "Designed a **two-level segregated fit** (TLSF) allocator utilizing **128-bit** bitmask free-list indexing, localized arena allocation, and a deferred-free cache to optimize repeated alloc/free patterns."
+        "Developed a custom memory allocator (`malloc`, `calloc`, `realloc`, `free`) in **C**, outperforming glibc by up to **100%** in throughput with over **300%** memory reduction on targeted benchmarks, placing **3rd of ~300** students.",
+        "Designed a **two-level segregated fit** (TLSF) allocator with **128-bit** bitmask free-list indexing, localized arena allocation, and a deferred-free cache to exploit repeated alloc/free patterns.",
+        "Engineered aggressive block-level optimizations including compressed **32-bit** pointers, boundary-tag coalescing with footer elision, and flag-encoded headers for **O(1)** neighbor status checks."
       ]
     },
     {
@@ -183,38 +384,11 @@
         "systems"
       ],
       "bullets": [
-        "Built a terminal-based coding agent in **Go** with a multi-provider LLM adapter supporting **OpenAI**, **Anthropic**, and **OpenRouter**, featuring both native and text-based tool calling with automatic provider detection.",
-        "Designed a cost budgeting system with per-task token tracking, a pricing table with fuzzy model matching, and automatic model tiering that cascades across providers, switching to cheaper models as budget thresholds are hit.",
+        "Built a terminal-based agentic coding framework in **Go** with a multi-provider LLM adapter supporting **OpenAI**, **Anthropic**, and **OpenRouter**, featuring native and text-based tool calling with automatic provider detection.",
+        "Designed a cost budgeting system with per-task token tracking, a pricing table with fuzzy model matching, and automatic model tiering that cascades across providers, downgrading to cheaper models as budget thresholds are hit.",
         "Engineered an event-driven async process manager with disk-backed output buffering, timeout enforcement, platform-agnostic process tree killing, and output filtering that extracts compiler errors from large build logs to minimize token usage.",
+        "Developing a **SQLite-backed knowledge graph** with structural indexing, temporal versioning, and behavioral analysis layers to power **graph-guided task decomposition** via co-change clusters, with a sequential plan architecture supporting topological-sort parallelism through `depends_on` metadata.",
         "Implemented auto-generated design docs and a living architecture document with diff-based incremental updates, providing persistent session memory across agent restarts."
-      ]
-    },
-    {
-      "id": "logana",
-      "name": "Logana",
-      "subtitle": "Privacy-First Encrypted Messaging Platform",
-      "tags": [
-        "networking",
-        "systems"
-      ],
-      "bullets": [
-        "Architecting a **C++20** end-to-end encrypted group messaging platform with a relay-based architecture comprising chunked deque message storage, a device registry, tag-based message routing, and permission-gated fan-out.",
-        "Designed a store-and-ref message pipeline where the relay router performs permission checks, stores messages in per-account **chunked deque** containers with lazy construction, and fans out to connected devices via callback.",
-        "Implementing TCP transport with **io\\_uring** for high-throughput async I/O, with a typed alias system and forward-compatible protocol design targeting a two-instance CLI demo as the first milestone."
-      ]
-    },
-    {
-      "id": "audio_relay",
-      "name": "Asynchronous Audio Relay",
-      "subtitle": "Low-Latency Concurrent Systems \\& Networking",
-      "tags": [
-        "networking",
-        "systems"
-      ],
-      "bullets": [
-        "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX sockets** and per-peer **pthreads** to isolate connection state, replacing a single-threaded poll loop that serialized concurrent sessions and amplified head-of-line blocking.",
-        "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, demonstrating that store-and-forward relay semantics need not trade away interactive responsiveness.",
-        "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, eliminating mutex contention on the hot path versus a mutex-backed prototype that introduced measurable tail latency under load."
       ]
     },
     {
@@ -226,8 +400,8 @@
         "ai_ml"
       ],
       "bullets": [
-        "Built a full-stack platform that translates natural language into executable soft robotics physics simulations via PyElastica (Cosserat rod theory), placing **3rd** at the Keywords AI (now Respan) hackathon among **200+** participants.",
-        "Architected a high-performance **FastAPI** backend utilizing Numba JIT compilation, coupled with a headless Matplotlib and FFmpeg rendering pipeline for end-to-end simulation generation in **under 20 seconds**.",
+        "Built a full-stack platform that translates natural language into executable soft robotics physics simulations via **PyElastica** (Cosserat rod theory), placing as a **winner** at the Keywords AI hackathon among **200+** participants.",
+        "Architected a high-performance **FastAPI** backend with **Numba** JIT compilation and a headless **Matplotlib/FFmpeg** rendering pipeline for end-to-end simulation generation in **under 20 seconds**.",
         "Developed an interactive **React/Vite** frontend featuring real-time simulation visualization and LLM-routed code generation through the Keywords AI gateway."
       ]
     },
@@ -241,8 +415,52 @@
       ],
       "bullets": [
         "Developed an interactive **Lean4** proof game hosted on the Lean Game Server comprising **2 worlds** and **24 levels** that teach group theory through guided theorem proving, covering abelian groups, subgroups, and normal subgroups.",
-        "Formalized **1,200+** lines of Lean4 encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, subgroup intersection, and the one-step subgroup test, building a notation-agnostic `MyGroup` typeclass.",
+        "Formalized **1,200+** lines of **Lean4** encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, subgroup intersection, and the one-step subgroup test, building a notation-agnostic `MyGroup` typeclass.",
         "Designed progressive level sequences that decompose **formalized proofs** into **structured learning blocks**, with layered hints and narrative annotations guiding players from basic group axioms to advanced subgroup characterizations."
+      ]
+    },
+    {
+      "id": "audio_relay",
+      "name": "Asynchronous Audio Relay",
+      "subtitle": "Low-Latency Concurrent Systems \\& Networking",
+      "tags": [
+        "networking",
+        "systems"
+      ],
+      "bullets": [
+        "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX sockets** and per-peer **pthreads**, replacing a single-threaded poll loop that serialized concurrent sessions and amplified head-of-line blocking.",
+        "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, demonstrating that store-and-forward relay semantics need not trade away interactive responsiveness.",
+        "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, eliminating mutex contention on the hot path versus a mutex-backed prototype that introduced measurable tail latency under load."
+      ]
+    },
+    {
+      "id": "logana",
+      "name": "Logana",
+      "subtitle": "Privacy-First Encrypted Messaging Platform",
+      "tags": [
+        "security",
+        "networking",
+        "systems"
+      ],
+      "bullets": [
+        "Architecting a **C++20** end-to-end encrypted group messaging platform with lock-free **SPSC chunked deque** storage, tag-based message routing, and permission-gated fan-out over a relay architecture.",
+        "Implemented cross-platform async TCP transports with **io\\_uring** on Linux and **IOCP** on Windows, unified under a platform-abstracted event loop with a typed alias system and forward-compatible framing protocol.",
+        "Designed a store-and-ref pipeline where the relay router performs permission checks, stores messages in per-account chunked deque containers, and fans out lightweight **MessageRef**s to connected devices."
+      ]
+    },
+    {
+      "id": "cherimoya",
+      "name": "Cherimoya",
+      "subtitle": "Systems Language Compiler Frontend",
+      "tags": [
+        "compilers",
+        "systems"
+      ],
+      "bullets": [
+        "Designing a **C++20** compiler frontend for Cherimoya, a systems language featuring ownership-oriented primitives (`val`, `addr`, `move`, `free`) and a **15-level** operator precedence grammar, targeting a **self-hosting compiler** within a ground-up personal computing stack.",
+        "Built a Pratt (precedence-climbing) expression parser over a `unique_ptr` AST with nud/led binding powers, left/right associativity, and `ErrorExpr`-preserving recovery for multi-error reports.",
+        "Implemented a span-based lexer with maximal-munch scanning, offset-native source locations, and multi-error recovery, covered by **Catch2** tests across operators, numeric bases, and keywords.",
+        "Extending the parser with statement and declaration AST nodes, type parsing with qualifier ordering enforcement, three repeat forms, two pattern-match modes, and **contract clause** parsing for function-level pre/postconditions."
       ]
     },
     {
@@ -250,13 +468,13 @@
       "name": "SIGEcom",
       "subtitle": "Systematic Trading Strategy Research \\& Simulation",
       "tags": [
-        "math",
-        "ai_ml"
+        "quant_finance",
+        "math"
       ],
       "bullets": [
-        "Designed, backtested, and deployed **multi-asset algorithmic trading strategies** in Python, utilizing SMA, EMA+RSI, MACD, and statistical arbitrage approaches across **6 symbols**.",
-        "Integrated custom strategies into a live simulation framework, executing **40+ trades** over a one-week evaluation period on real-time cryptocurrency and FX market data.",
-        "Achieved **positive PnL** across a diverse portfolio including BTC, ETH, SOL, INR, ZAR, and JPY."
+        "Designed and backtested **multi-asset algorithmic trading strategies** in **Python** combining SMA crossovers, EMA+RSI filters, MACD momentum, and statistical arbitrage across **6 symbols**.",
+        "Achieved **net-positive PnL** across a diversified portfolio spanning cryptocurrency (BTC, ETH, SOL) and foreign exchange (INR, ZAR, JPY) markets.",
+        "Deployed strategies into a live simulation framework executing **40+ trades** over a one-week evaluation period on real-time cryptocurrency and FX market data."
       ]
     },
     {
@@ -264,13 +482,14 @@
       "name": "Financial Engineering",
       "subtitle": "Quantitative Options Pricing \\& ML-Based Volatility Modeling",
       "tags": [
+        "quant_finance",
         "math",
         "ai_ml"
       ],
       "bullets": [
-        "Leveraged **neural network de-Americanization** techniques to convert market American option prices into equivalent European prices, enabling **accurate implied volatility** computation.",
-        "Implemented the **Cox-Ross-Rubinstein** binomial model in Python to price European and American options, verifying convergence toward Black-Scholes benchmark values.",
-        "Analyzed **early exercise boundaries** and computational efficiency across various market regimes to optimize pricing accuracy."
+        "Applied **neural network de-Americanization** to convert American option prices into European equivalents, enabling accurate **implied volatility surface** construction via Black-Scholes inversion.",
+        "Implemented the **Cox-Ross-Rubinstein** binomial lattice in **Python** to price European and American options, validating convergence to Black-Scholes analytical values across strike and maturity grids.",
+        "Characterized **early exercise boundaries** across varying dividend, volatility, and interest rate regimes, quantifying the accuracy-performance tradeoff as a function of lattice depth."
       ]
     }
   ]

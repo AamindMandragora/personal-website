@@ -156,8 +156,8 @@
 
 <script>
 // ─── State ───
-const INDUSTRY_TAGS = ["systems","networking","ai_ml","formal_methods","fullstack","math","pedagogy"];
-const PROJECT_IDS = ["malloc","pragma","logana","audio_relay","squishy","lean4game","sigecom","fin_eng"];
+const INDUSTRY_TAGS = ["systems","networking","ai_ml","formal_methods","fullstack","math","pedagogy","compilers","quant_finance","security"];
+const PROJECT_IDS = ["malloc","pragma","squishy","lean4game","audio_relay","logana","cherimoya","sigecom","fin_eng"];
 
 const NEW_CFG_TEMPLATE = `# Resume Configuration
 # Edit filters, press ▶ Run to generate PDF
@@ -192,6 +192,36 @@ let persistConfigs = false;
 let cvBlobUrl = null;
 let generatedBlobUrl = null;
 let generatedFilename = "resume";
+let layoutCandidates = [];
+let selectedLayoutId = null;
+
+function revokeGeneratedLayouts() {
+  for (const layout of layoutCandidates) {
+    if (layout.blobUrl) URL.revokeObjectURL(layout.blobUrl);
+  }
+  layoutCandidates = [];
+  selectedLayoutId = null;
+  if (generatedBlobUrl) {
+    URL.revokeObjectURL(generatedBlobUrl);
+    generatedBlobUrl = null;
+  }
+}
+
+function selectLayout(layoutId) {
+  const layout = layoutCandidates.find(l => l.id === layoutId);
+  if (!layout) return;
+  selectedLayoutId = layoutId;
+  generatedBlobUrl = layout.blobUrl;
+  log("info", `Selected layout: ${layout.label} — ${layout.summary}`);
+  render();
+}
+
+function base64ToBlobUrl(b64, mime = "application/pdf") {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: mime }));
+}
 
 // ─── Logging ───
 function log(type, text) {
@@ -420,7 +450,11 @@ async function compileConfig() {
     const resp = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ config: configText, filename: baseName }),
+      body: JSON.stringify({
+        config: configText,
+        filename: baseName,
+        candidates: target !== "cv",
+      }),
     });
 
     if (!resp.ok) {
@@ -428,12 +462,29 @@ async function compileConfig() {
       throw new Error(err.error || `HTTP ${resp.status}`);
     }
 
-    const blob = await resp.blob();
-    if (generatedBlobUrl) URL.revokeObjectURL(generatedBlobUrl);
-    generatedBlobUrl = URL.createObjectURL(blob);
+    const contentType = resp.headers.get("content-type") || "";
+    revokeGeneratedLayouts();
     generatedFilename = baseName;
 
-    log("success", `Compiled ${baseName}.pdf${target === "cv" ? " (CV)" : ""} (${(blob.size / 1024).toFixed(1)} KB)`);
+    if (contentType.includes("application/json")) {
+      const payload = await resp.json();
+      const layouts = payload.layouts || [];
+      if (!layouts.length) throw new Error("No layout candidates returned");
+      layoutCandidates = layouts.map(layout => ({
+        ...layout,
+        blobUrl: base64ToBlobUrl(layout.pdf_base64),
+      }));
+      selectedLayoutId = layoutCandidates[0].id;
+      generatedBlobUrl = layoutCandidates[0].blobUrl;
+      log("success", `Compiled ${layouts.length} layout option${layouts.length === 1 ? "" : "s"} for ${baseName}.pdf`);
+      for (const layout of layoutCandidates) {
+        log("info", `${layout.label}: ${layout.summary}`);
+      }
+    } else {
+      const blob = await resp.blob();
+      generatedBlobUrl = URL.createObjectURL(blob);
+      log("success", `Compiled ${baseName}.pdf${target === "cv" ? " (CV)" : ""} (${(blob.size / 1024).toFixed(1)} KB)`);
+    }
 
     if (!openTabs.includes("__gen__")) openTabs.push("__gen__");
     activeFile = "__gen__";
@@ -533,10 +584,25 @@ async function render() {
   const content = document.getElementById("content");
 
   if (activeFile === "__gen__" && generatedBlobUrl) {
+    const layoutButtons = layoutCandidates.length
+      ? `<div class="btns" style="flex-wrap:wrap;justify-content:flex-start">
+          ${layoutCandidates.map(layout => `
+            <button class="btn ${layout.id === selectedLayoutId ? "btn-run" : "btn-dim"}"
+              onclick="selectLayout('${layout.id}')"
+              title="${escapeHtml(layout.summary)}">
+              ${escapeHtml(layout.label)}
+            </button>`).join("")}
+        </div>`
+      : "";
+    const selected = layoutCandidates.find(l => l.id === selectedLayoutId);
+    const summary = selected
+      ? `<span class="label" style="color:var(--dim)">${escapeHtml(selected.summary)}</span>`
+      : `<span class="label" style="color:var(--green)">Compiled PDF — ${escapeHtml(generatedFilename)}.pdf</span>`;
     content.innerHTML = `
       <div class="pdf-viewer">
-        <div class="pdf-toolbar">
-          <span class="label" style="color:var(--green)">Compiled PDF — ${escapeHtml(generatedFilename)}.pdf</span>
+        <div class="pdf-toolbar" style="flex-wrap:wrap">
+          ${summary}
+          ${layoutButtons}
           <div class="btns">
             <button class="btn btn-dl" onclick="downloadGenerated()">↓ Download PDF</button>
           </div>

@@ -14,7 +14,7 @@ The app is a VS Code-style frontend backed by a small Flask server that renders 
 
 - Full CV generation directly from `cv_data.json`
 - Tailored resume generation from editable `.cfg` files
-- Project filtering by `industry=[...]`
+- Project filtering by `industry=[...]` (also filters research, experience, coursework, awards, languages, and tools)
 - Explicit project selection with `projects=[...]`
 - Ordered selectors: if `projects` comes before `industry`, those projects are prioritized first; if `industry` comes first, industry-matched projects fill first
 - Duplicate-safe project selection
@@ -73,6 +73,11 @@ Built-in industry tags:
 - `fullstack` — web apps, APIs, React, FastAPI
 - `math` — pure math background, stats, modeling
 - `pedagogy` — tutoring, teaching, educational tools
+- `compilers` — lexers, parsers, compiler frontends
+- `quant_finance` — trading, options pricing, financial engineering
+- `security` — encryption, privacy-first systems
+
+When `industry=[...]` is set, every tagged section is filtered to matching entries. Coursework, awards, languages, and tools each render on a single line (truncated with `...` if needed). Tailored resumes prune research, experience, and projects to fit one page.
 
 Project IDs come from the entries in `cv_data.json` and are also listed in the sidebar of the frontend.
 

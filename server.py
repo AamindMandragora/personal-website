@@ -12,7 +12,7 @@ Endpoints:
   POST /api/configs          → create a new .cfg file
   DELETE /api/configs/<name> → delete a .cfg file
 """
-import os, json, copy, re, datetime
+import os, json, copy, re, datetime, base64
 from flask import Flask, request, send_file, jsonify, send_from_directory
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
@@ -59,10 +59,14 @@ WIDTH = RIGHT - LEFT
 FONT_REGULAR = "Times-Roman"
 FONT_BOLD = "Times-Bold"
 FONT_ITALIC = "Times-Italic"
+FONT_CODE = "Courier"
 SPACING_SCALE = 0.85
 CURRENT_YEAR = datetime.datetime.now().year
 DEFAULT_EARLIEST_START_YEAR = 2024
 DEFAULT_EARLIEST_END_YEAR = 2024
+BULLET_FONT_SIZE = 10.2
+ENTRY_TITLE_SIZE = 10.6
+MARKUP_SEGMENT_PATTERN = re.compile(r"\*\*(.+?)\*\*|`([^`]+)`")
 
 
 def sv(value):
@@ -70,27 +74,48 @@ def sv(value):
     return value * SPACING_SCALE
 
 
-def register_charter_fonts():
-    """Register local Charter TTFs when available."""
-    global FONT_REGULAR, FONT_BOLD, FONT_ITALIC
+def register_fonts():
+    """Register local Charter + monospace TTFs when available."""
+    global FONT_REGULAR, FONT_BOLD, FONT_ITALIC, FONT_CODE
     regular_path = os.path.join(FONTS_DIR, "Charter-Regular.ttf")
     bold_path = os.path.join(FONTS_DIR, "Charter-Bold.ttf")
     italic_path = os.path.join(FONTS_DIR, "Charter-Italic.ttf")
-    if not (os.path.exists(regular_path) and os.path.exists(bold_path) and os.path.exists(italic_path)):
-        return False
-    try:
-        pdfmetrics.registerFont(TTFont("Charter-Regular", regular_path))
-        pdfmetrics.registerFont(TTFont("Charter-Bold", bold_path))
-        pdfmetrics.registerFont(TTFont("Charter-Italic", italic_path))
-        FONT_REGULAR = "Charter-Regular"
-        FONT_BOLD = "Charter-Bold"
-        FONT_ITALIC = "Charter-Italic"
-        return True
-    except Exception:
-        return False
+    if os.path.exists(regular_path) and os.path.exists(bold_path) and os.path.exists(italic_path):
+        try:
+            pdfmetrics.registerFont(TTFont("Charter-Regular", regular_path))
+            pdfmetrics.registerFont(TTFont("Charter-Bold", bold_path))
+            pdfmetrics.registerFont(TTFont("Charter-Italic", italic_path))
+            FONT_REGULAR = "Charter-Regular"
+            FONT_BOLD = "Charter-Bold"
+            FONT_ITALIC = "Charter-Italic"
+        except Exception:
+            pass
+    mono_path = os.path.join(FONTS_DIR, "LiberationMono-Regular.ttf")
+    if os.path.exists(mono_path):
+        try:
+            pdfmetrics.registerFont(TTFont("LiberationMono-Regular", mono_path))
+            FONT_CODE = "LiberationMono-Regular"
+        except Exception:
+            FONT_CODE = "Courier"
+    else:
+        FONT_CODE = "Courier"
 
 
-register_charter_fonts()
+register_fonts()
+
+
+def _font_for_style(style):
+    if style == "bold":
+        return FONT_BOLD
+    if style == "code":
+        return FONT_CODE
+    return FONT_REGULAR
+
+
+def _size_for_style(style, base_size):
+    if style == "code":
+        return max(8.0, base_size - 0.6)
+    return base_size
 
 
 def normalize_text(text):
@@ -207,6 +232,41 @@ def _order_section(values, tagged_items, resolved_industries):
             seen.add(key_name)
     return ordered or normalized_values
 
+
+def _expanded_tags_from_industries(resolved_industries):
+    expanded = set()
+    for key in resolved_industries or []:
+        canonical = INDUSTRY_ALIASES.get(key, key)
+        expanded |= INDUSTRY_TAGS.get(canonical, {key})
+    return expanded
+
+
+def _item_matches_tags(item, expanded_tags):
+    if not expanded_tags:
+        return True
+    return any(tag in expanded_tags for tag in item.get("tags", []))
+
+
+def _filter_tagged_names(values, tagged_items, resolved_industries, expanded_tags):
+    ordered = _order_section(values, tagged_items, resolved_industries)
+    if not expanded_tags:
+        return ordered
+    tagged = _normalize_tagged_items(tagged_items)
+    allowed = set()
+    for item in tagged:
+        name = item.get("name", "")
+        if not name:
+            continue
+        if _item_matches_tags(item, expanded_tags):
+            allowed.add(name.strip().lower())
+    return [name for name in ordered if name.strip().lower() in allowed]
+
+
+def _filter_entries_by_tags(entries, expanded_tags):
+    if not expanded_tags:
+        return entries
+    return [entry for entry in entries if _item_matches_tags(entry, expanded_tags)]
+
 INDUSTRY_TAGS = {
     "systems": {"systems"},
     "networking": {"networking"},
@@ -215,6 +275,9 @@ INDUSTRY_TAGS = {
     "fullstack": {"fullstack"},
     "math": {"math"},
     "pedagogy": {"pedagogy"},
+    "compilers": {"compilers"},
+    "quant_finance": {"quant_finance"},
+    "security": {"security"},
 }
 
 INDUSTRY_ALIASES = {
@@ -231,6 +294,13 @@ INDUSTRY_ALIASES = {
     "math": "math",
     "pure_math": "math",
     "pedagogy": "pedagogy",
+    "compilers": "compilers",
+    "compiler": "compilers",
+    "quant_finance": "quant_finance",
+    "finance": "quant_finance",
+    "quant": "quant_finance",
+    "security": "security",
+    "crypto": "security",
 }
 
 # ─── Config parsing ───
@@ -277,8 +347,6 @@ def filter_cv(config, *, force_include_all_projects=False):
     data = copy.deepcopy(source_cv)
     earliest_start_year = _config_year_from_value(config.get("earliest_start_date"), DEFAULT_EARLIEST_START_YEAR)
     earliest_end_year = _config_year_from_value(config.get("earliest_end_date"), DEFAULT_EARLIEST_END_YEAR)
-    data["experience"] = _filter_experiences_by_years(data["experience"], earliest_start_year, earliest_end_year)
-    data["_ordering_industries"] = []
     industries = config.get("industry") or config.get("industries")
     selected_projects = config.get("projects") or config.get("project")
     if isinstance(industries, str):
@@ -291,17 +359,9 @@ def filter_cv(config, *, force_include_all_projects=False):
         for i in industries:
             resolved_industries.append(str(i).strip().lower())
 
-    resolved_projects = []
-    if selected_projects:
-        for project in selected_projects:
-            resolved_projects.append(str(project).strip().lower())
-
-    expanded_tags = set()
-    for key in resolved_industries:
-        canonical = INDUSTRY_ALIASES.get(key, key)
-        expanded_tags |= INDUSTRY_TAGS.get(canonical, {key})
-
+    expanded_tags = _expanded_tags_from_industries(resolved_industries)
     data["_ordering_industries"] = resolved_industries
+    data["_expanded_tags"] = expanded_tags
 
     project_lookup = {}
     for item in source_cv.get("projects", []):
@@ -313,7 +373,41 @@ def filter_cv(config, *, force_include_all_projects=False):
             project_lookup[pname] = item
 
     def project_matches_tags(item, tags):
-        return any(tag in tags for tag in item.get("tags", []))
+        return _item_matches_tags(item, tags)
+
+    data["research"] = _filter_entries_by_tags(data.get("research", []), expanded_tags)
+    data["experience"] = _filter_experiences_by_years(
+        _filter_entries_by_tags(data.get("experience", []), expanded_tags),
+        earliest_start_year,
+        earliest_end_year,
+    )
+
+    edu = data.get("education", {})
+    edu["coursework"] = _filter_tagged_names(
+        edu.get("coursework", []),
+        edu.get("coursework_tags", []),
+        resolved_industries,
+        expanded_tags,
+    )
+    data["education"] = edu
+    data["awards"] = _filter_tagged_names(
+        data.get("awards", []),
+        data.get("award_tags", []),
+        resolved_industries,
+        expanded_tags,
+    )
+    filtered_language_tags = _normalize_tagged_items(data.get("language_tags", []))
+    if expanded_tags:
+        filtered_language_tags = [
+            item for item in filtered_language_tags if _item_matches_tags(item, expanded_tags)
+        ]
+    data["language_tags"] = filtered_language_tags
+    data["tools"] = _filter_tagged_names(
+        data.get("tools", []),
+        data.get("tool_tags", []),
+        resolved_industries,
+        expanded_tags,
+    )
 
     def select_projects_by_steps():
         steps = config.get("_selector_steps", [])
@@ -462,27 +556,107 @@ def wrap_text(c, text, font_name, font_size, max_width):
     return lines
 
 
-def wrap_bolded_lines(c, text, font_size, max_width):
-    """Wrap text containing **bold** markers into lines with formatting flags."""
+def _fit_text_one_line(c, text, font_name, font_size, max_width):
+    text = normalize_text(text)
+    if not text:
+        return ""
+    if c.stringWidth(text, font_name, font_size) <= max_width:
+        return text
+    trimmed = text
+    while trimmed and c.stringWidth(trimmed, font_name, font_size) > max_width:
+        trimmed = trimmed[:-1].rstrip(" ,;")
+    return trimmed
+
+
+def _fit_comma_list_one_line(c, items, font_name, font_size, max_width):
+    names = [normalize_text(x) for x in items or [] if normalize_text(x).strip()]
+    if not names:
+        return ""
+    joined = ", ".join(names)
+    if c.stringWidth(joined, font_name, font_size) <= max_width:
+        return joined
+    while len(names) > 1:
+        names = names[:-1]
+        trial = ", ".join(names)
+        if c.stringWidth(trial, font_name, font_size) <= max_width:
+            return trial
+    return _fit_text_one_line(c, names[0], font_name, font_size, max_width)
+
+
+def draw_labelled_one_line(c, label, text, x, y, font_name=FONT_REGULAR, font_size=10, max_width=None, line_gap=12):
+    label_text = f"{label}: "
+    c.setFont(FONT_BOLD, font_size)
+    c.drawString(x, y, label_text)
+    text_x = x + c.stringWidth(label_text, FONT_BOLD, font_size)
+    if max_width is None:
+        max_width = WIDTH
+    available_width = max(0, max_width - (text_x - x))
     normalized = normalize_text(text)
+    if c.stringWidth(normalized, font_name, font_size) <= available_width:
+        fitted = normalized
+    else:
+        fitted = _fit_text_one_line(c, normalized, font_name, font_size, available_width)
+    c.setFont(font_name, font_size)
+    c.drawString(text_x, y, fitted)
+    return y - line_gap
+
+
+def draw_bulleted_one_line(c, text, x, y, font_name="Helvetica", font_size=10, max_width=None, line_gap=12):
+    bullet_x = x + 6
+    text_x = x + 14
+    if max_width is None:
+        max_width = WIDTH
+    available_width = max(0, max_width - (text_x - x))
+    normalized = normalize_text(text)
+    if c.stringWidth(normalized, font_name, font_size) <= available_width:
+        fitted = normalized
+    else:
+        fitted = _fit_text_one_line(c, normalized, font_name, font_size, available_width)
+    c.setFont(font_name, font_size)
+    c.drawString(bullet_x, y, u"\u2022")
+    c.drawString(text_x, y, fitted)
+    return y - line_gap
+
+
+def _markup_segments(text):
+    """Split text into (segment, style) pairs for **bold** and `code` markup."""
+    normalized = normalize_text(text)
+    segments = []
+    pos = 0
+    for match in MARKUP_SEGMENT_PATTERN.finditer(normalized):
+        if match.start() > pos:
+            segments.append((normalized[pos:match.start()], "regular"))
+        if match.group(1) is not None:
+            segments.append((match.group(1), "bold"))
+        else:
+            segments.append((match.group(2), "code"))
+        pos = match.end()
+    if pos < len(normalized):
+        segments.append((normalized[pos:], "regular"))
+    if not segments:
+        segments.append(("", "regular"))
+    return segments
+
+
+def wrap_markup_lines(c, text, font_size, max_width):
+    """Wrap text containing **bold** and `code` markers into styled lines."""
     tokens = []
-    bold = False
-    for part in normalized.split("**"):
-        if part:
-            for chunk in WHITESPACE_PATTERN.split(part):
-                if not chunk:
-                    continue
-                tokens.append((chunk, bold))
-        bold = not bold
+    for segment, style in _markup_segments(text):
+        if not segment:
+            continue
+        for chunk in WHITESPACE_PATTERN.split(segment):
+            if chunk:
+                tokens.append((chunk, style))
     if not tokens:
-        return [[(" ", False)]]
+        return [[(" ", "regular")]]
 
     lines = []
     current = []
     current_width = 0.0
-    for token, is_bold in tokens:
-        font_name = FONT_BOLD if is_bold else FONT_REGULAR
-        token_width = c.stringWidth(token, font_name, font_size)
+    for token, style in tokens:
+        font_name = _font_for_style(style)
+        token_size = _size_for_style(style, font_size)
+        token_width = c.stringWidth(token, font_name, token_size)
         if current and current_width + token_width > max_width:
             lines.append(current)
             current = []
@@ -491,13 +665,18 @@ def wrap_bolded_lines(c, text, font_size, max_width):
                 continue
         if not current and token.isspace():
             continue
-        current.append((token, is_bold))
+        current.append((token, style))
         current_width += token_width
     if current:
         lines.append(current)
     if not lines:
         lines.append([])
     return lines
+
+
+def wrap_bolded_lines(c, text, font_size, max_width):
+    """Backward-compatible alias for wrap_markup_lines."""
+    return wrap_markup_lines(c, text, font_size, max_width)
 
 def draw_line(c, text, x, y, font_name="Helvetica", font_size=10, max_width=None, line_gap=12):
     c.setFont(font_name, font_size)
@@ -554,7 +733,7 @@ def maybe_new_page(c, y, needed_height, slack=sv(4)):
     return TOP
 
 def _estimate_bullet_line_count(c, bullet, content_w):
-    return max(1, len(wrap_bolded_lines(c, bullet, 10.2, content_w - 20)))
+    return max(1, len(wrap_markup_lines(c, bullet, BULLET_FONT_SIZE, content_w - 20)))
 
 
 def _entry_content_height(c, item, content_w):
@@ -569,33 +748,39 @@ def _estimate_entry_height(c, item, content_w):
     return _entry_content_height(c, item, content_w) + sv(8)
 
 
-def _entry_fits_together(c, item, y, content_w):
-    return (y - _entry_content_height(c, item, content_w)) >= BOTTOM
-
-
 def _item_with_bullets(item, bullet_count):
     if bullet_count is None:
         return item
     return {**item, "bullets": item.get("bullets", [])[:bullet_count]}
 
 
-def _layout_content_bottom_y(c, items, bullet_counts, start_y, content_w):
+def _estimate_section_header_height():
+    # Cursor is already on the title baseline when draw_section_header runs;
+    # only the underline offset and trailing gap move y downward.
+    return sv(5) + sv(18)
+
+
+def _entry_fits_together(c, item, y, content_w, floor_y=BOTTOM):
+    return (y - _entry_content_height(c, item, content_w)) >= floor_y
+
+
+def _layout_content_bottom_y(c, items, bullet_counts, start_y, content_w, floor_y=BOTTOM):
     """Simulate draw cursor; final value is the ink bottom (before last trailing gap)."""
     y = start_y
     for item, bullet_count in zip(items, bullet_counts):
         candidate = _item_with_bullets(item, bullet_count)
-        if not _entry_fits_together(c, candidate, y, content_w):
-            return BOTTOM - 1
+        if not _entry_fits_together(c, candidate, y, content_w, floor_y):
+            return floor_y - 1
         y -= _estimate_entry_height(c, candidate, content_w)
     return y + sv(8)
 
 
-def _layout_bottom_y(c, items, bullet_counts, start_y, content_w, keep_entry_together=False):
+def _layout_bottom_y(c, items, bullet_counts, start_y, content_w, keep_entry_together=False, floor_y=BOTTOM):
     y = start_y
     for item, bullet_count in zip(items, bullet_counts):
         candidate = _item_with_bullets(item, bullet_count)
-        if keep_entry_together and not _entry_fits_together(c, candidate, y, content_w):
-            return BOTTOM - 1
+        if keep_entry_together and not _entry_fits_together(c, candidate, y, content_w, floor_y):
+            return floor_y - 1
         y -= _estimate_entry_height(c, candidate, content_w)
     return y
 
@@ -607,30 +792,53 @@ def _per_item_bullet_cap(item, max_bullets):
     return min(available, max_bullets)
 
 
-def _plan_one_page_layout(c, items, start_y, min_bullets, max_bullets, content_w):
-    """Pick project count + bullet counts that honor min/max and fill one page."""
+def _simulate_tailored_bottom(c, plan, start_y, content_w):
+    """Return ink-bottom y after planned sections (BOTTOM-1 if overflow)."""
+    y = start_y
+    drew_entry = False
+    for key in ("research", "experience", "projects"):
+        items = plan.get(key) or []
+        if not items:
+            continue
+        y -= _estimate_section_header_height()
+        for item, count in items:
+            candidate = _item_with_bullets(item, count)
+            if not _entry_fits_together(c, candidate, y, content_w):
+                return BOTTOM - 1
+            y -= _estimate_entry_height(c, candidate, content_w)
+            drew_entry = True
+    # Match _layout_content_bottom_y: exclude the last entry's trailing gap.
+    return y + sv(8) if drew_entry else y
+
+
+def _pack_bullet_counts(c, items, start_y, min_bullets, max_bullets, content_w, floor_y=BOTTOM):
+    """Fit as many leading items as possible; trim last items first, refill earlier first."""
     if not items:
         return []
 
     lo = max(1, min_bullets) if min_bullets is not None else 1
 
     def fits(subset, counts):
-        return _layout_content_bottom_y(c, subset, counts, start_y, content_w) >= BOTTOM
+        return _layout_content_bottom_y(c, subset, counts, start_y, content_w, floor_y) >= floor_y
 
     for item_count in range(len(items), 0, -1):
         subset = items[:item_count]
         caps = [_per_item_bullet_cap(it, max_bullets) for it in subset]
         counts = caps[:]
 
+        # Trim from the end so earlier entries keep more bullets.
         while not fits(subset, counts) and any(count > lo for count in counts):
             for idx in range(item_count - 1, -1, -1):
                 if counts[idx] > lo:
                     counts[idx] -= 1
                     break
+            else:
+                break
 
         if not fits(subset, counts):
             continue
 
+        # Refill from the front so the last entry is the only short one when needed.
         changed = True
         while changed:
             changed = False
@@ -643,35 +851,252 @@ def _plan_one_page_layout(c, items, start_y, min_bullets, max_bullets, content_w
                         changed = True
                         break
 
-        # Prefer trailing entries when slack remains: shift a bullet forward
-        # from an earlier item if the page still fits.
-        shifted = True
-        while shifted:
-            shifted = False
-            for later in range(item_count - 1, 0, -1):
-                if counts[later] >= caps[later]:
-                    continue
-                for earlier in range(later):
-                    if counts[earlier] <= lo:
-                        continue
-                    trial = counts[:]
-                    trial[earlier] -= 1
-                    trial[later] += 1
-                    if fits(subset, trial):
-                        counts = trial
-                        shifted = True
-                        break
-                if shifted:
-                    break
-
         return list(zip(subset, counts))
 
     first = items[0]
     cap = _per_item_bullet_cap(first, max_bullets)
     for count in range(cap, lo - 1, -1):
-        if _layout_content_bottom_y(c, [first], [count], start_y, content_w) >= BOTTOM:
+        if _layout_content_bottom_y(c, [first], [count], start_y, content_w, floor_y) >= floor_y:
             return [(first, count)]
     return [(first, lo)]
+
+
+def _plan_one_page_layout(c, items, start_y, min_bullets, max_bullets, content_w, floor_y=BOTTOM):
+    return _pack_bullet_counts(c, items, start_y, min_bullets, max_bullets, content_w, floor_y)
+
+
+def _layout_metrics(c, plan, start_y, content_w):
+    bottom_y = _simulate_tailored_bottom(c, plan, start_y, content_w)
+    usable = max(1.0, start_y - BOTTOM)
+    slack = max(0.0, bottom_y - BOTTOM) if bottom_y >= BOTTOM else usable
+    fill = 1.0 - (slack / usable) if bottom_y >= BOTTOM else 0.0
+    project_items = plan.get("projects") or []
+    research_items = plan.get("research") or []
+    experience_items = plan.get("experience") or []
+    bullets = sum(count for _, count in research_items + experience_items + project_items)
+    return {
+        "slack": slack,
+        "fill": fill,
+        "bullets": bullets,
+        "projects": len(project_items),
+        "experience": len(experience_items),
+        "research": len(research_items),
+        "bottom_y": bottom_y,
+    }
+
+
+def _pack_prefix_sections(c, research, experience, min_bullets, max_bullets, start_y, content_w):
+    """Keep research/experience when possible; trim trailing entries/bullets first."""
+    lo = max(1, min_bullets) if min_bullets is not None else 1
+    research_n = len(research)
+    experience_n = len(experience)
+
+    def try_counts(r_items, e_items):
+        y = start_y
+        r_plan = []
+        e_plan = []
+        if r_items:
+            y -= _estimate_section_header_height()
+            r_plan = _pack_bullet_counts(c, r_items, y, min_bullets, max_bullets, content_w)
+            if not r_plan and r_items:
+                return None
+            for item, count in r_plan:
+                y -= _estimate_entry_height(c, _item_with_bullets(item, count), content_w)
+        if e_items:
+            y -= _estimate_section_header_height()
+            e_plan = _pack_bullet_counts(c, e_items, y, min_bullets, max_bullets, content_w)
+            if not e_plan and e_items:
+                return None
+            for item, count in e_plan:
+                y -= _estimate_entry_height(c, _item_with_bullets(item, count), content_w)
+        # y includes trailing gap after the last entry; fit against ink bottom.
+        ink_y = y + sv(8) if (r_plan or e_plan) else y
+        if ink_y < BOTTOM:
+            return None
+        return {"research": r_plan, "experience": e_plan, "y_after": y}
+
+    for drop_e in range(experience_n + 1):
+        for drop_r in range(research_n + 1):
+            r_items = research[: research_n - drop_r]
+            e_items = experience[: experience_n - drop_e]
+            packed = try_counts(r_items, e_items)
+            if packed is not None:
+                return packed
+    return {"research": [], "experience": [], "y_after": start_y}
+
+
+def _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, content_w):
+    research = list(data.get("research", []))
+    experience = list(data.get("experience", []))
+    projects = list(data.get("projects", []))
+    lo = max(1, min_bullets) if min_bullets is not None else 1
+    hi = max_bullets if max_bullets is not None else None
+
+    # Try several prefix bullet budgets so projects can reclaim space.
+    prefix_caps = []
+    if hi is None:
+        prefix_caps = [None]
+    else:
+        for cap in range(hi, lo - 1, -1):
+            prefix_caps.append(cap)
+        if not prefix_caps:
+            prefix_caps = [hi]
+
+    plans = []
+    seen = set()
+
+    for prefix_cap in prefix_caps:
+        prefix = _pack_prefix_sections(
+            c, research, experience, min_bullets, prefix_cap, start_y, content_w
+        )
+        y_projects = prefix["y_after"]
+
+        for project_count in range(len(projects), 0, -1):
+            subset = projects[:project_count]
+            header_y = y_projects - _estimate_section_header_height()
+            packed = _pack_bullet_counts(
+                c, subset, header_y, min_bullets, max_bullets, content_w
+            )
+            if not packed or len(packed) < project_count:
+                continue
+            plan = {
+                "research": prefix["research"],
+                "experience": prefix["experience"],
+                "projects": packed,
+            }
+            metrics = _layout_metrics(c, plan, start_y, content_w)
+            if metrics["bottom_y"] < BOTTOM:
+                continue
+            sig = (
+                tuple((it.get("id"), count) for it, count in plan["research"]),
+                tuple((it.get("id"), count) for it, count in plan["experience"]),
+                tuple((it.get("id"), count) for it, count in plan["projects"]),
+            )
+            if sig in seen:
+                continue
+            seen.add(sig)
+            plans.append({"plan": plan, "metrics": metrics})
+
+        if prefix["research"] or prefix["experience"]:
+            plan = {
+                "research": prefix["research"],
+                "experience": prefix["experience"],
+                "projects": [],
+            }
+            metrics = _layout_metrics(c, plan, start_y, content_w)
+            if metrics["bottom_y"] >= BOTTOM:
+                sig = (
+                    tuple((it.get("id"), count) for it, count in plan["research"]),
+                    tuple((it.get("id"), count) for it, count in plan["experience"]),
+                    tuple(),
+                )
+                if sig not in seen:
+                    seen.add(sig)
+                    plans.append({"plan": plan, "metrics": metrics})
+
+    return plans
+
+
+def _select_layout_candidates(scored_plans):
+    """Pick up to three diverse layouts: tightest fill, most projects, most bullets."""
+    if not scored_plans:
+        return []
+
+    def clone(entry, layout_id, label):
+        return {
+            "id": layout_id,
+            "label": label,
+            "plan": entry["plan"],
+            "metrics": entry["metrics"],
+        }
+
+    def plan_sig(entry):
+        return (
+            tuple((it.get("id"), count) for it, count in entry["plan"].get("research", [])),
+            tuple((it.get("id"), count) for it, count in entry["plan"].get("experience", [])),
+            tuple((it.get("id"), count) for it, count in entry["plan"].get("projects", [])),
+        )
+
+    chosen = []
+    seen = set()
+
+    def add(entry, layout_id, label):
+        sig = plan_sig(entry)
+        if sig in seen:
+            return False
+        seen.add(sig)
+        chosen.append(clone(entry, layout_id, label))
+        return True
+
+    def add_best(key_fn, layout_id, label_fn):
+        ranked = sorted(scored_plans, key=key_fn, reverse=True)
+        for entry in ranked:
+            label = label_fn(entry) if callable(label_fn) else label_fn
+            if add(entry, layout_id, label):
+                return entry
+        return None
+
+    densest = add_best(
+        lambda e: (e["metrics"]["fill"], e["metrics"]["bullets"], e["metrics"]["projects"]),
+        "tightest_fill",
+        "Tightest fill",
+    )
+    add_best(
+        lambda e: (e["metrics"]["projects"], e["metrics"]["fill"], e["metrics"]["bullets"]),
+        "most_projects",
+        lambda e: (
+            "Most projects"
+            if densest is None or e["metrics"]["projects"] >= densest["metrics"]["projects"]
+            else "Balanced"
+        ),
+    )
+    add_best(
+        lambda e: (e["metrics"]["bullets"], e["metrics"]["fill"], e["metrics"]["projects"]),
+        "most_bullets",
+        "Most bullets",
+    )
+
+    leftovers = sorted(
+        scored_plans,
+        key=lambda e: (e["metrics"]["fill"], e["metrics"]["bullets"], e["metrics"]["projects"]),
+        reverse=True,
+    )
+    for idx, entry in enumerate(leftovers):
+        if len(chosen) >= 3:
+            break
+        add(entry, f"alt_{idx}", "Alternative")
+    return chosen[:3]
+
+
+def _plan_tailored_resume(c, data, start_y, min_bullets, max_bullets, content_w, strategy=None):
+    scored = _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, content_w)
+    if not scored:
+        return {"research": [], "experience": [], "projects": []}
+    strategy_key = (strategy or "tightest_fill").strip().lower()
+    if strategy_key in ("most_projects", "projects"):
+        best = max(
+            scored,
+            key=lambda e: (e["metrics"]["projects"], e["metrics"]["bullets"], e["metrics"]["fill"]),
+        )
+    elif strategy_key in ("most_bullets", "bullets"):
+        best = max(
+            scored,
+            key=lambda e: (e["metrics"]["bullets"], e["metrics"]["fill"], e["metrics"]["projects"]),
+        )
+    else:
+        best = max(
+            scored,
+            key=lambda e: (e["metrics"]["fill"], e["metrics"]["bullets"], e["metrics"]["projects"]),
+        )
+    return best["plan"]
+
+
+def _layout_summary(metrics):
+    slack_in = metrics["slack"] / 72.0
+    return (
+        f"{metrics['projects']} projects · {metrics['bullets']} bullets · "
+        f"~{slack_in:.2f}\" free"
+    )
 
 
 def _draw_single_entry(c, candidate, y, left, right, content_w, allow_new_page, keep_entry_together):
@@ -684,129 +1109,143 @@ def _draw_single_entry(c, candidate, y, left, right, content_w, allow_new_page, 
         if not allow_new_page:
             return y, False
         y = maybe_new_page(c, y, sv(28))
-    c.setFont(FONT_BOLD, 10.6)
+    c.setFont(FONT_BOLD, ENTRY_TITLE_SIZE)
     name_text = normalize_text(candidate["name"])
     c.drawString(left, y, name_text)
-    c.setFont(FONT_ITALIC, 10.6)
+    c.setFont(FONT_ITALIC, ENTRY_TITLE_SIZE)
     subtitle = normalize_text(candidate["subtitle"])
-    name_end = left + c.stringWidth(name_text, FONT_BOLD, 10.6)
-    c.setFont(FONT_REGULAR, 10.6)
+    name_end = left + c.stringWidth(name_text, FONT_BOLD, ENTRY_TITLE_SIZE)
+    c.setFont(FONT_REGULAR, ENTRY_TITLE_SIZE)
     c.drawString(name_end + 1, y, ", ")
-    c.setFont(FONT_ITALIC, 10.6)
+    c.setFont(FONT_ITALIC, ENTRY_TITLE_SIZE)
     c.drawString(name_end + 8, y, subtitle)
     dates_text = normalize_text(candidate.get("dates", ""))
     if dates_text:
-        c.setFont(FONT_REGULAR, 10.6)
+        c.setFont(FONT_REGULAR, ENTRY_TITLE_SIZE)
         c.drawRightString(right, y, dates_text)
     y -= sv(16)
     for bullet in candidate["bullets"]:
-        y = maybe_new_page(c, y, sv(32))
-        bullet_lines = wrap_bolded_lines(c, bullet, 10.2, content_w - 20)
+        if allow_new_page:
+            y = maybe_new_page(c, y, sv(32))
+        bullet_lines = wrap_markup_lines(c, bullet, BULLET_FONT_SIZE, content_w - 20)
         for idx, line in enumerate(bullet_lines):
             if not line:
                 continue
             if idx == 0:
-                c.setFont(FONT_REGULAR, 10.2)
+                c.setFont(FONT_REGULAR, BULLET_FONT_SIZE)
                 c.drawString(left + 6, y, u"\u2022")
             x_cursor = left + 14
-            for token, is_bold in line:
-                font = FONT_BOLD if is_bold else FONT_REGULAR
-                c.setFont(font, 10.2)
+            for token, style in line:
+                font = _font_for_style(style)
+                size = _size_for_style(style, BULLET_FONT_SIZE)
+                c.setFont(font, size)
                 c.drawString(x_cursor, y, token)
-                x_cursor += c.stringWidth(token, font, 10.2)
+                x_cursor += c.stringWidth(token, font, size)
             y -= sv(15)
     y -= sv(8)
     return y, True
 
 
-def draw_entries(c, y, title, items, allow_new_page=True, min_bullets=None, max_bullets=None, keep_entry_together=True):
-    if not items:
+def draw_entries(
+    c,
+    y,
+    title,
+    items,
+    allow_new_page=True,
+    min_bullets=None,
+    max_bullets=None,
+    keep_entry_together=True,
+    planned=None,
+):
+    if planned is None and not items:
+        return y, 0
+    if planned is not None and not planned:
         return y, 0
     left = LEFT
     right = RIGHT
     content_w = WIDTH
 
-    y = maybe_new_page(c, y, sv(36))
+    if allow_new_page:
+        y = maybe_new_page(c, y, sv(36))
     y = draw_section_header(c, title, left, y)
     drawn = 0
 
-    if not allow_new_page and keep_entry_together:
-        planned = _plan_one_page_layout(c, items, y, min_bullets, max_bullets, content_w)
-        for it, bullet_count in planned:
-            candidate = _item_with_bullets(it, bullet_count)
-            y, ok = _draw_single_entry(
-                c, candidate, y, left, right, content_w, allow_new_page, keep_entry_together
-            )
-            if ok:
-                drawn += 1
-        return y, drawn
+    if planned is not None:
+        draw_list = planned
+    elif not allow_new_page and keep_entry_together:
+        draw_list = _plan_one_page_layout(c, items, y, min_bullets, max_bullets, content_w)
+    else:
+        draw_list = [
+            (it, _per_item_bullet_cap(it, max_bullets) if max_bullets is not None else None)
+            for it in items
+        ]
 
-    for it in items:
-        candidate = it
-        if max_bullets is not None:
-            candidate = _item_with_bullets(it, _per_item_bullet_cap(it, max_bullets))
+    for it, bullet_count in draw_list:
+        candidate = _item_with_bullets(it, bullet_count)
         y, ok = _draw_single_entry(
             c, candidate, y, left, right, content_w, allow_new_page, keep_entry_together
         )
-        if not ok:
+        if ok:
+            drawn += 1
+        elif not allow_new_page:
             break
-        drawn += 1
     return y, drawn
 
-def generate_pdf(data, title="Resume", pdf_title=None, include_all_projects=False):
-    """Generate ATS-friendly PDF bytes with LaTeX-like visual layout."""
-    try:
-        buf = BytesIO()
-        c = canvas.Canvas(buf, pagesize=letter, pageCompression=1)
-        document_title = pdf_title or f"{normalize_text(data['name'])} - {title}"
-        c.setTitle(document_title)
-        c.setAuthor(data["name"])
-        y = TOP
+def _draw_resume_prefix(c, data):
+    """Draw name/contact/education/skills; return y ready for research/experience/projects."""
+    y = TOP
+    row1_y = y - sv(1)
+    row2_y = y - sv(18)
+    name_y = row2_y - sv(2)
 
-        # Header: align name block with the two-line socials block.
-        row1_y = y - sv(1)
-        row2_y = y - sv(18)
-        # Lower the large name so its visual block spans roughly the same vertical band.
-        name_y = row2_y - sv(2)
+    c.setFont(FONT_REGULAR, 29)
+    c.drawString(LEFT, name_y, normalize_text(data["name"]))
+    c.setFont(FONT_REGULAR, 11)
+    c.drawRightString(RIGHT, row1_y, f"{normalize_text(data['location'])} | {normalize_text(data['email'])}")
+    c.drawRightString(
+        RIGHT,
+        row2_y,
+        f"{normalize_text(data['phone'])} | GitHub | LinkedIn",
+    )
+    y = row2_y - sv(24)
 
-        c.setFont(FONT_REGULAR, 29)
-        c.drawString(LEFT, name_y, normalize_text(data["name"]))
-        c.setFont(FONT_REGULAR, 11)
-        c.drawRightString(RIGHT, row1_y, f"{normalize_text(data['location'])} | {normalize_text(data['email'])}")
-        c.drawRightString(
-            RIGHT,
-            row2_y,
-            f"{normalize_text(data['phone'])} | GitHub | LinkedIn"
+    c.linkURL(f"mailto:{data['email']}", (RIGHT - 142, row1_y - 3, RIGHT, row1_y + 9), relative=0)
+    c.linkURL(
+        f"tel:{''.join(ch for ch in data['phone'] if ch.isdigit() or ch == '+')}",
+        (RIGHT - 206, row2_y - 3, RIGHT - 126, row2_y + 9),
+        relative=0,
+    )
+    c.linkURL(data["github"], (RIGHT - 83, row2_y - 3, RIGHT - 46, row2_y + 9), relative=0)
+    c.linkURL(data["linkedin"], (RIGHT - 44, row2_y - 3, RIGHT, row2_y + 9), relative=0)
+    y -= sv(12)
+
+    y = draw_section_header(c, "Education", LEFT, y)
+    edu = data["education"]
+    c.setFont(FONT_BOLD, 11)
+    c.drawString(LEFT, y, normalize_text(edu["school"]))
+    c.setFont(FONT_REGULAR, 10.5)
+    c.drawRightString(RIGHT, y, normalize_text(edu["dates"]))
+    y -= sv(16)
+    c.setFont(FONT_ITALIC, 10.5)
+    c.drawString(LEFT, y, normalize_text(edu["degree"]))
+    y -= sv(16)
+
+    ordering = data.get("_ordering_industries", [])
+    coursework_values = edu.get("coursework", [])
+    coursework_tags = edu.get("coursework_tags", [])
+    coursework_ordered = _order_section(coursework_values, coursework_tags, ordering)
+    if coursework_ordered:
+        coursework_prefix = "Relevant Coursework: "
+        coursework_body_x = LEFT + 14
+        coursework_body_w = WIDTH - (coursework_body_x - LEFT) - c.stringWidth(
+            coursework_prefix, FONT_REGULAR, 10
         )
-        y = row2_y - sv(24)
-
-        # keep actual links machine-readable and clickable
-        # Row 1 links (email)
-        c.linkURL(f"mailto:{data['email']}", (RIGHT - 142, row1_y - 3, RIGHT, row1_y + 9), relative=0)
-        # Row 2 links (phone/github/linkedin)
-        c.linkURL(f"tel:{''.join(ch for ch in data['phone'] if ch.isdigit() or ch == '+')}", (RIGHT - 206, row2_y - 3, RIGHT - 126, row2_y + 9), relative=0)
-        c.linkURL(data["github"], (RIGHT - 83, row2_y - 3, RIGHT - 46, row2_y + 9), relative=0)
-        c.linkURL(data["linkedin"], (RIGHT - 44, row2_y - 3, RIGHT, row2_y + 9), relative=0)
-        y -= sv(12)
-
-        y = draw_section_header(c, "Education", LEFT, y)
-        edu = data["education"]
-        c.setFont(FONT_BOLD, 11)
-        c.drawString(LEFT, y, normalize_text(edu["school"]))
-        c.setFont(FONT_REGULAR, 10.5)
-        c.drawRightString(RIGHT, y, normalize_text(edu["dates"]))
-        y -= sv(16)
-        c.setFont(FONT_ITALIC, 10.5)
-        c.drawString(LEFT, y, normalize_text(edu["degree"]))
-        y -= sv(16)
-
-        ordering = data.get("_ordering_industries", [])
-        coursework_values = edu.get("coursework", [])
-        coursework_tags = edu.get("coursework_tags", [])
-        coursework_ordered = _order_section(coursework_values, coursework_tags, ordering)
-        y = draw_bulleted_line(
+        coursework_body = _fit_comma_list_one_line(
+            c, coursework_ordered, FONT_REGULAR, 10, max(0, coursework_body_w)
+        )
+        y = draw_bulleted_one_line(
             c,
-            f"Relevant Coursework: {', '.join(normalize_text(x) for x in coursework_ordered)}",
+            coursework_prefix + coursework_body,
             LEFT,
             y,
             FONT_REGULAR,
@@ -814,41 +1253,156 @@ def generate_pdf(data, title="Resume", pdf_title=None, include_all_projects=Fals
             WIDTH,
             sv(16),
         )
-        y -= sv(12)
+    y -= sv(12)
 
-        y = draw_section_header(c, "Technical Skills and Awards", LEFT, y)
-        awards_text = ", ".join(normalize_text(x) for x in data["awards"])
-        y = draw_labelled_line(c, "Awards", awards_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
-        languages_ordered = _order_section([], data.get("language_tags", []), ordering)
-        languages_text = ", ".join(normalize_text(x) for x in languages_ordered)
-        y = draw_labelled_line(c, "Languages", languages_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
-        tools_text = ", ".join(normalize_text(x) for x in data["tools"])
-        y = draw_labelled_line(c, "Tools & Libraries", tools_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16))
-        y -= sv(10)
+    y = draw_section_header(c, "Technical Skills and Awards", LEFT, y)
+    awards = data.get("awards", [])
+    if awards:
+        awards_label = "Awards and Recognitions"
+        awards_label_w = c.stringWidth(f"{awards_label}: ", FONT_BOLD, 10)
+        awards_body = _fit_comma_list_one_line(
+            c, awards, FONT_REGULAR, 10, max(0, WIDTH - awards_label_w)
+        )
+        y = draw_labelled_one_line(
+            c, awards_label, awards_body, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16)
+        )
+    languages_ordered = _order_section([], data.get("language_tags", []), ordering)
+    if languages_ordered:
+        languages_label = "Languages"
+        languages_label_w = c.stringWidth(f"{languages_label}: ", FONT_BOLD, 10)
+        languages_body = _fit_comma_list_one_line(
+            c, languages_ordered, FONT_REGULAR, 10, max(0, WIDTH - languages_label_w)
+        )
+        y = draw_labelled_one_line(
+            c, languages_label, languages_body, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16)
+        )
+    tools = data.get("tools", [])
+    if tools:
+        tools_label = "Tools & Libraries"
+        tools_label_w = c.stringWidth(f"{tools_label}: ", FONT_BOLD, 10)
+        tools_body = _fit_comma_list_one_line(
+            c, tools, FONT_REGULAR, 10, max(0, WIDTH - tools_label_w)
+        )
+        y = draw_labelled_one_line(
+            c, tools_label, tools_body, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16)
+        )
+    y -= sv(10)
+    return y
 
+
+def generate_pdf(
+    data,
+    title="Resume",
+    pdf_title=None,
+    include_all_projects=False,
+    layout_plan=None,
+    layout_strategy=None,
+):
+    """Generate ATS-friendly PDF bytes with LaTeX-like visual layout."""
+    try:
+        buf = BytesIO()
+        c = canvas.Canvas(buf, pagesize=letter, pageCompression=1)
+        document_title = pdf_title or f"{normalize_text(data['name'])} - {title}"
+        c.setTitle(document_title)
+        c.setAuthor(data["name"])
+
+        y = _draw_resume_prefix(c, data)
         bounds = data.get("_bullet_bounds", {}) if isinstance(data, dict) else {}
         min_b = bounds.get("min")
         max_b = bounds.get("max")
 
-        # Full CVs can spill projects onto later pages; tailored resumes stay compact.
-        y, _ = draw_entries(c, y, "Research", data.get("research", []), allow_new_page=True, max_bullets=max_b)
-        y, _ = draw_entries(c, y, "Experience", data.get("experience", []), allow_new_page=True, max_bullets=max_b)
-        y, _ = draw_entries(
-            c,
-            y,
-            "Technical Projects",
-            data.get("projects", []),
-            allow_new_page=include_all_projects,
-            min_bullets=min_b,
-            max_bullets=max_b,
-            keep_entry_together=not include_all_projects,
-        )
+        if include_all_projects:
+            y, _ = draw_entries(
+                c, y, "Research", data.get("research", []), allow_new_page=True, max_bullets=max_b
+            )
+            y, _ = draw_entries(
+                c, y, "Experience", data.get("experience", []), allow_new_page=True, max_bullets=max_b
+            )
+            y, _ = draw_entries(
+                c,
+                y,
+                "Technical Projects",
+                data.get("projects", []),
+                allow_new_page=True,
+                min_bullets=min_b,
+                max_bullets=max_b,
+                keep_entry_together=False,
+            )
+        else:
+            tailored = layout_plan or _plan_tailored_resume(
+                c, data, y, min_b, max_b, WIDTH, strategy=layout_strategy
+            )
+            y, _ = draw_entries(
+                c,
+                y,
+                "Research",
+                [],
+                allow_new_page=False,
+                keep_entry_together=True,
+                planned=tailored.get("research", []),
+            )
+            y, _ = draw_entries(
+                c,
+                y,
+                "Experience",
+                [],
+                allow_new_page=False,
+                keep_entry_together=True,
+                planned=tailored.get("experience", []),
+            )
+            y, _ = draw_entries(
+                c,
+                y,
+                "Technical Projects",
+                [],
+                allow_new_page=False,
+                keep_entry_together=True,
+                planned=tailored.get("projects", []),
+            )
 
         c.save()
         buf.seek(0)
         return buf.read(), None
     except Exception as e:
         return None, str(e)
+
+
+def generate_layout_candidates(data, title="Resume", pdf_title=None):
+    """Build up to three diversified one-page layout PDFs for the caller to choose."""
+    measure_buf = BytesIO()
+    measure_c = canvas.Canvas(measure_buf, pagesize=letter, pageCompression=1)
+    start_y = _draw_resume_prefix(measure_c, data)
+    bounds = data.get("_bullet_bounds", {}) if isinstance(data, dict) else {}
+    min_b = bounds.get("min")
+    max_b = bounds.get("max")
+    scored = _enumerate_tailored_plans(measure_c, data, start_y, min_b, max_b, WIDTH)
+    selected = _select_layout_candidates(scored)
+    layouts = []
+    for cand in selected:
+        pdf_bytes, err = generate_pdf(
+            data,
+            title=title,
+            pdf_title=pdf_title,
+            include_all_projects=False,
+            layout_plan=cand["plan"],
+        )
+        if not pdf_bytes:
+            continue
+        layouts.append(
+            {
+                "id": cand["id"],
+                "label": cand["label"],
+                "summary": _layout_summary(cand["metrics"]),
+                "metrics": {
+                    "projects": cand["metrics"]["projects"],
+                    "bullets": cand["metrics"]["bullets"],
+                    "slack_in": round(cand["metrics"]["slack"] / 72.0, 2),
+                    "fill": round(cand["metrics"]["fill"], 3),
+                },
+                "pdf_base64": base64.b64encode(pdf_bytes).decode("ascii"),
+            }
+        )
+    return layouts
 
 # ─── Pre-compile CV on startup ───
 def cv_pdf_is_stale():
@@ -913,16 +1467,32 @@ def compile_resume():
     data = request.get_json(force=True)
     config_text = data.get("config", "")
     filename = data.get("filename", "resume")
+    want_candidates = bool(data.get("candidates"))
+    layout_strategy = data.get("layout") or data.get("layout_strategy")
     if not config_text.strip():
         return jsonify({"error": "Empty config"}), 400
 
     config = parse_config_text(config_text)
     if not config:
         return jsonify({"error": "No valid key=value pairs found"}), 400
+    if layout_strategy is None:
+        layout_strategy = config.get("layout")
 
     filtered = filter_cv(config)
     pdf_title = pdf_title_from_config(config, filename, filtered["name"])
-    pdf_bytes, err = generate_pdf(filtered, title=filename, pdf_title=pdf_title)
+
+    if want_candidates:
+        layouts = generate_layout_candidates(filtered, title=filename, pdf_title=pdf_title)
+        if not layouts:
+            return jsonify({"error": "No feasible one-page layouts"}), 500
+        return jsonify({"filename": filename, "layouts": layouts})
+
+    pdf_bytes, err = generate_pdf(
+        filtered,
+        title=filename,
+        pdf_title=pdf_title,
+        layout_strategy=layout_strategy,
+    )
 
     if pdf_bytes:
         return send_file(
@@ -1114,7 +1684,7 @@ def config_file(filename):
     return jsonify({"deleted": safe})
 
 if __name__ == "__main__":
-    register_charter_fonts()
+    register_fonts()
     ensure_configs_dir()
     ensure_cv_pdf()
     port = 5000

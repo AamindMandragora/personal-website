@@ -1,4 +1,5 @@
 flask>=3.0
 reportlab>=4.2
 pymongo>=4.6
+certifi>=2024.0
 python-dotenv>=1.0

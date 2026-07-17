@@ -24,7 +24,7 @@ The app is a VS Code-style frontend backed by a small Flask server that renders 
 
 ```bash
 pip install -r requirements.txt
-# Ensure .env has MONGO_USER, MONGO_PASSWD, EDIT_PASSWORD, SESSION_SECRET
+# Ensure .env has MONGO_URI, EDIT_PASSWORD, SESSION_SECRET
 python server.py
 ```
 
@@ -120,11 +120,10 @@ personal-website/
 ## Environment
 
 ```bash
-MONGO_USER=...
-MONGO_PASSWD=...
-EDIT_PASSWORD=...      # shared password for Edit CV
-SESSION_SECRET=...     # random long string for signed cookies
-SESSION_COOKIE_SECURE=true   # optional; auto-enabled on Vercel
+MONGO_URI=mongodb+srv://...   # Atlas / Vercel connection string
+EDIT_PASSWORD=...             # shared password for Edit CV
+SESSION_SECRET=...            # random long string for signed cookies
+SESSION_COOKIE_SECURE=true    # optional; auto-enabled on Vercel
 ```
 
 ### Vercel

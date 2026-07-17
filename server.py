@@ -15,9 +15,11 @@ Endpoints:
 import os, json, copy, re, datetime, base64, time, functools
 from io import BytesIO
 
+import certifi
 from dotenv import load_dotenv
 from flask import Flask, request, send_file, jsonify, session
 from pymongo import MongoClient
+from pymongo.errors import AutoReconnect, ConnectionFailure, ServerSelectionTimeoutError
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
@@ -57,14 +59,10 @@ if IS_VERCEL:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-MONGO_USER = os.environ.get("MONGO_USER", "")
-MONGO_PASSWD = os.environ.get("MONGO_PASSWD", "")
+MONGO_URI = os.environ.get("MONGO_URI", "").strip()
 EDIT_PASSWORD = os.environ.get("EDIT_PASSWORD", "")
-MONGO_URI = (
-    f"mongodb+srv://{MONGO_USER}:{MONGO_PASSWD}"
-    f"@cv-data.4ksrqdm.mongodb.net/?appName=cv-data"
-)
 CV_SLUG = "main"
+_MONGO_TRANSIENT = (AutoReconnect, ConnectionFailure, ServerSelectionTimeoutError)
 
 _mongo_client = None
 _cv_cache = {"data": None, "updated": None}
@@ -83,14 +81,40 @@ def add_cors(response):
 app.after_request(add_cors)
 
 
+def reset_mongo_client():
+    """Drop a broken client so the next call opens a fresh TLS session."""
+    global _mongo_client
+    if _mongo_client is not None:
+        try:
+            _mongo_client.close()
+        except Exception:
+            pass
+    _mongo_client = None
+
+
 def get_mongo_collection():
     """Return the cv.cv_data collection, creating the client lazily."""
     global _mongo_client
     if _mongo_client is None:
-        if not MONGO_USER or not MONGO_PASSWD:
-            raise RuntimeError("MONGO_USER and MONGO_PASSWD must be set in .env")
-        _mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=8000)
+        if not MONGO_URI:
+            raise RuntimeError("MONGO_URI must be set in .env")
+        _mongo_client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=8000,
+            connectTimeoutMS=10000,
+            tls=True,
+            tlsCAFile=certifi.where(),
+        )
     return _mongo_client["cv"]["cv_data"]
+
+
+def with_mongo_retry(fn):
+    """Run fn(collection); on transient TLS/network errors, reconnect once."""
+    try:
+        return fn(get_mongo_collection())
+    except _MONGO_TRANSIENT:
+        reset_mongo_client()
+        return fn(get_mongo_collection())
 
 
 def load_cv_data_from_disk():
@@ -98,18 +122,29 @@ def load_cv_data_from_disk():
         return json.load(f)
 
 
+def write_cv_data_to_disk(data):
+    """Best-effort local mirror (skipped on Vercel’s read-only FS)."""
+    if IS_VERCEL:
+        return
+    with open(CV_JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
 def seed_mongo_if_empty():
     """Insert cv_data.json into Mongo once if the main document is missing."""
-    col = get_mongo_collection()
-    if col.find_one({"slug": CV_SLUG}, projection={"_id": 1}):
-        return False
-    data = load_cv_data_from_disk()
-    now = time.time()
-    col.insert_one({"slug": CV_SLUG, "data": data, "updated": now})
-    _cv_cache["data"] = data
-    _cv_cache["updated"] = now
-    print("[startup] Seeded MongoDB cv.cv_data from cv_data.json")
-    return True
+    def _seed(col):
+        if col.find_one({"slug": CV_SLUG}, projection={"_id": 1}):
+            return False
+        data = load_cv_data_from_disk()
+        now = time.time()
+        col.insert_one({"slug": CV_SLUG, "data": data, "updated": now})
+        _cv_cache["data"] = data
+        _cv_cache["updated"] = now
+        print("[startup] Seeded MongoDB cv.cv_data from cv_data.json")
+        return True
+
+    return with_mongo_retry(_seed)
 
 
 def invalidate_cv_cache():
@@ -122,8 +157,13 @@ def get_cv_data():
     if _cv_cache["data"] is not None:
         return copy.deepcopy(_cv_cache["data"])
     try:
-        col = get_mongo_collection()
-        doc = col.find_one({"slug": CV_SLUG}, projection={"_id": 0, "data": 1, "updated": 1})
+        def _read(col):
+            return col.find_one(
+                {"slug": CV_SLUG},
+                projection={"_id": 0, "data": 1, "updated": 1},
+            )
+
+        doc = with_mongo_retry(_read)
         if doc and doc.get("data") is not None:
             _cv_cache["data"] = doc["data"]
             _cv_cache["updated"] = doc.get("updated")
@@ -137,16 +177,34 @@ def get_cv_data():
 
 
 def save_cv_data(data):
-    """Persist CV JSON to Mongo and refresh the in-memory cache."""
+    """Persist CV JSON to Mongo (and local disk mirror) and refresh the cache."""
     if not isinstance(data, dict):
         raise ValueError("CV data must be a JSON object")
     now = time.time()
-    col = get_mongo_collection()
-    col.replace_one(
-        {"slug": CV_SLUG},
-        {"slug": CV_SLUG, "data": data, "updated": now},
-        upsert=True,
-    )
+
+    def _write(col):
+        col.replace_one(
+            {"slug": CV_SLUG},
+            {"slug": CV_SLUG, "data": data, "updated": now},
+            upsert=True,
+        )
+
+    try:
+        with_mongo_retry(_write)
+    except _MONGO_TRANSIENT as exc:
+        # Local editing should still work when Atlas TLS/network blips.
+        if IS_VERCEL:
+            raise
+        print(f"[cv] Mongo write failed, saving to cv_data.json: {exc}")
+        write_cv_data_to_disk(data)
+        _cv_cache["data"] = data
+        _cv_cache["updated"] = now
+        return now
+
+    try:
+        write_cv_data_to_disk(data)
+    except Exception as exc:
+        print(f"[cv] Disk mirror skipped: {exc}")
     _cv_cache["data"] = data
     _cv_cache["updated"] = now
     return now

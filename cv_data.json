@@ -111,8 +111,7 @@
   },
   "awards": [
     "YC Startup School 2026",
-    "Keywords AI Hackathon 2025 Winner",
-    "American Invitational Mathematics Exam (AIME) Qualifier",
+    "American Invitational Mathematics Exam Qualifier",
     "USACO Silver Division",
     "Quiz Bowl Nationals"
   ],
@@ -306,7 +305,7 @@
       "id": "cs341",
       "name": "University of Illinois at Urbana-Champaign",
       "subtitle": "Systems Programming Course Assistant",
-      "dates": "Aug 2026 -- Present",
+      "dates": "Jul 2026 -- Present",
       "tags": [
         "systems",
         "pedagogy"
@@ -378,14 +377,14 @@
     {
       "id": "pragma",
       "name": "Pragma",
-      "subtitle": "Provider-Agnostic Agentic Coding Framework",
+      "subtitle": "Coding Agent",
       "tags": [
         "ai_ml",
         "systems"
       ],
       "bullets": [
-        "Built a terminal-based agentic coding framework in **Go** with a multi-provider LLM adapter supporting **OpenAI**, **Anthropic**, and **OpenRouter**, featuring native and text-based tool calling with automatic provider detection.",
-        "Designed a cost budgeting system with per-task token tracking, a pricing table with fuzzy model matching, and automatic model tiering that cascades across providers, downgrading to cheaper models as budget thresholds are hit.",
+        "Built a terminal-based agentic coding framework in **Go** with a **multi-provider LLM adapter** supporting OpenAI, Anthropic, and OpenRouter, featuring native and text-based tool calling with automatic provider detection.",
+        "Designed a **cost budgeting system** with per-task token tracking, a pricing table with fuzzy model matching, and automatic model tiering that cascades across providers, downgrading to cheaper models as budget thresholds are hit.",
         "Engineered an event-driven async process manager with disk-backed output buffering, timeout enforcement, platform-agnostic process tree killing, and output filtering that extracts compiler errors from large build logs to minimize token usage.",
         "Developing a **SQLite-backed knowledge graph** with structural indexing, temporal versioning, and behavioral analysis layers to power **graph-guided task decomposition** via co-change clusters, with a sequential plan architecture supporting topological-sort parallelism through `depends_on` metadata.",
         "Implemented auto-generated design docs and a living architecture document with diff-based incremental updates, providing persistent session memory across agent restarts."

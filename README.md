@@ -2,13 +2,13 @@
 
 Fork this repo, replace the contents of `cv_data.json` with your own background, and generate a full CV plus tailored one-page resumes from the browser.
 
-The app is a VS Code-style frontend backed by a small Flask server that renders ATS-friendly PDFs with ReportLab. There is no LaTeX setup, no frontend build step, and no separate database. Your source of truth is just JSON plus a few `.cfg` selector files.
+The app is a VS Code-style frontend backed by a small Flask server that renders ATS-friendly PDFs with ReportLab. There is no LaTeX setup and no frontend build step. CV content lives in MongoDB (seeded once from `cv_data.json`); resume filter presets live in the browser’s `localStorage`. Editing the CV requires a shared password from `.env`.
 
 ## What You Can Customize
 
-- `cv_data.json`: your name, education, research, experience, projects, skills, awards, and links
-- `cv.pdf`: the full CV, regenerated automatically from `cv_data.json`
-- `.cfg` files in the web IDE: targeted resume filters for industries, specific projects, and bullet limits
+- MongoDB `cv.cv_data`: your name, education, research, experience, projects, skills, awards, and links (seeded from `cv_data.json` on first boot)
+- `cv.pdf`: the full CV, regenerated when CV data is saved
+- Local `.cfg` presets in the web IDE: targeted resume filters for industries, specific projects, and bullet limits (stored in `localStorage`, never written to the server)
 
 ## Features
 
@@ -24,10 +24,11 @@ The app is a VS Code-style frontend backed by a small Flask server that renders 
 
 ```bash
 pip install -r requirements.txt
+# Ensure .env has MONGO_USER, MONGO_PASSWD, EDIT_PASSWORD, SESSION_SECRET
 python server.py
 ```
 
-Then open `http://localhost:5000`.
+Then open `http://localhost:5000`. Click **Edit CV** and enter `EDIT_PASSWORD` to change source data.
 
 ## How To Use It
 
@@ -106,35 +107,55 @@ Duplicates are removed automatically.
 ```text
 personal-website/
 ├── server.py
-├── cv_data.json
+├── cv_data.json      # bootstrap / fallback seed for MongoDB
 ├── cv.pdf
-├── configs/          # example.cfg resume preset (loaded by the browser IDE)
+├── configs/          # optional local examples (not served for write)
 ├── requirements.txt
 ├── fonts/
+├── .env              # MONGO_*, EDIT_PASSWORD, SESSION_SECRET (gitignored)
 └── static/
     └── index.html
 ```
 
+## Environment
+
+```bash
+MONGO_USER=...
+MONGO_PASSWD=...
+EDIT_PASSWORD=...      # shared password for Edit CV
+SESSION_SECRET=...     # random long string for signed cookies
+SESSION_COOKIE_SECURE=true   # optional; auto-enabled on Vercel
+```
+
+### Vercel
+
+The repo root [`server.py`](server.py) is the Flask entrypoint (`app`). Set the same env vars in the Vercel project. `SESSION_COOKIE_SECURE` turns on automatically when `VERCEL=1`.
+
+Also in MongoDB Atlas → Network Access, allow `0.0.0.0/0` (or Vercel’s egress) so serverless functions can reach the cluster. PDF output uses `/tmp` + an in-memory cache on Vercel because the deployment filesystem is read-only.
+
 ## API
 
 | Endpoint | Method | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `/` | GET | Serves the web IDE |
 | `/api/cv.pdf` | GET | Returns the full CV PDF |
+| `/api/data` | GET | Publishes CV JSON from MongoDB |
+| `/api/cv` | PUT | Replace CV document (session auth); regenerates PDF |
+| `/api/auth/login` | POST | `{ password }` → sets HttpOnly session cookie |
+| `/api/auth/logout` | POST | Clears session |
+| `/api/auth/me` | GET | `{ authenticated: bool }` |
 | `/api/compile` | POST | Accepts `{ config, filename }` and returns a generated resume PDF |
 | `/api/compile-raw` | POST | Accepts raw `.cfg` text and returns a generated resume PDF |
-| `/api/configs` | GET/POST | List or create `.cfg` files in `configs/` |
-| `/api/configs/<name>` | GET/PUT/DELETE | Read, save, or delete a `.cfg` file |
-| `/api/data` | GET | Publishes `cv_data.json` so bots and screen readers can ingest the structured content |
 | `/api/health` | GET | Health check |
 
 ## Notes
 
-- `cv.pdf` is regenerated automatically when `cv_data.json` is newer.
+- `cv.pdf` is regenerated on startup when stale, and after authenticated CV saves.
+- Resume `.cfg` presets are stored in browser `localStorage`, not on the server.
 - The full CV can span multiple pages.
 - Generated resumes still try to stay compact and include as many selected projects as fit.
 - If you want nicer typography, drop `Charter-Regular.ttf`, `Charter-Bold.ttf`, and `Charter-Italic.ttf` into `fonts/`.
-- The frontend now injects the cv JSON as JSON-LD, so crawlers see the resume text without having to run the SPA.
+- The frontend injects the CV JSON as JSON-LD, so crawlers see the resume text without having to run the SPA.
 
 ## Forking This For Yourself
 

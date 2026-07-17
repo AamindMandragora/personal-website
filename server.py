@@ -4,50 +4,185 @@ server.py — Flask backend for the Resume IDE.
 Endpoints:
   GET  /                    → serves the frontend
   GET  /api/cv.pdf          → returns the pre-compiled full CV PDF
-  POST /api/compile          → accepts JSON config body, returns a filtered resume PDF
-  POST /api/compile-raw      → accepts raw .cfg text body, returns a filtered resume PDF
-  GET  /api/configs          → list .cfg files from configs/
-  GET  /api/configs/<name>   → read a .cfg file
-  PUT  /api/configs/<name>    → save a .cfg file
-  POST /api/configs          → create a new .cfg file
-  DELETE /api/configs/<name> → delete a .cfg file
+  GET  /api/data            → public CV JSON (from MongoDB)
+  PUT  /api/cv              → replace CV document (auth required); regen PDF
+  POST /api/auth/login      → set session cookie from shared password
+  POST /api/auth/logout     → clear session cookie
+  GET  /api/auth/me         → { authenticated: bool }
+  POST /api/compile         → accepts JSON config body, returns a filtered resume PDF
+  POST /api/compile-raw     → accepts raw .cfg text body, returns a filtered resume PDF
 """
-import os, json, copy, re, datetime, base64
-from flask import Flask, request, send_file, jsonify, send_from_directory
+import os, json, copy, re, datetime, base64, time, functools
 from io import BytesIO
+
+from dotenv import load_dotenv
+from flask import Flask, request, send_file, jsonify, session
+from pymongo import MongoClient
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-app = Flask(__name__, static_folder="static", static_url_path="/static")
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CV_PDF_PATH = os.path.join(BASE_DIR, "cv.pdf")
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+# Vercel’s filesystem is read-only except /tmp; local keeps cv.pdf in the repo.
+CV_PDF_PATH = "/tmp/cv.pdf" if IS_VERCEL else os.path.join(BASE_DIR, "cv.pdf")
+REPO_CV_PDF_PATH = os.path.join(BASE_DIR, "cv.pdf")
 CV_JSON_PATH = os.path.join(BASE_DIR, "cv_data.json")
-CONFIGS_DIR = os.path.join(BASE_DIR, "configs")
 FONTS_DIR = os.path.join(BASE_DIR, "fonts")
 INDEX_HTML_PATH = os.path.join(BASE_DIR, "static", "index.html")
-PROTECTED_CONFIGS = set()
+
+_secure_cookie_env = os.environ.get("SESSION_COOKIE_SECURE", "").strip().lower()
+if _secure_cookie_env in ("1", "true", "yes"):
+    SESSION_COOKIE_SECURE = True
+elif _secure_cookie_env in ("0", "false", "no"):
+    SESSION_COOKIE_SECURE = False
+else:
+    # Default: secure cookies on Vercel (HTTPS), off for local http://localhost
+    SESSION_COOKIE_SECURE = IS_VERCEL
+
+app = Flask(__name__, static_folder="static", static_url_path="/static")
+app.secret_key = os.environ.get("SESSION_SECRET") or os.urandom(32)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=SESSION_COOKIE_SECURE,
+)
+
+if IS_VERCEL:
+    # Trust X-Forwarded-* from Vercel’s reverse proxy.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+MONGO_USER = os.environ.get("MONGO_USER", "")
+MONGO_PASSWD = os.environ.get("MONGO_PASSWD", "")
+EDIT_PASSWORD = os.environ.get("EDIT_PASSWORD", "")
+MONGO_URI = (
+    f"mongodb+srv://{MONGO_USER}:{MONGO_PASSWD}"
+    f"@cv-data.4ksrqdm.mongodb.net/?appName=cv-data"
+)
+CV_SLUG = "main"
+
+_mongo_client = None
+_cv_cache = {"data": None, "updated": None}
+_pdf_cache = {"bytes": None, "updated": None}
+_runtime_ready = False
+
 
 # ─── CORS (no flask-cors needed) ───
 def add_cors(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,OPTIONS"
     return response
+
 
 app.after_request(add_cors)
 
-def load_cv_data():
+
+def get_mongo_collection():
+    """Return the cv.cv_data collection, creating the client lazily."""
+    global _mongo_client
+    if _mongo_client is None:
+        if not MONGO_USER or not MONGO_PASSWD:
+            raise RuntimeError("MONGO_USER and MONGO_PASSWD must be set in .env")
+        _mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=8000)
+    return _mongo_client["cv"]["cv_data"]
+
+
+def load_cv_data_from_disk():
     with open(CV_JSON_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
+def seed_mongo_if_empty():
+    """Insert cv_data.json into Mongo once if the main document is missing."""
+    col = get_mongo_collection()
+    if col.find_one({"slug": CV_SLUG}, projection={"_id": 1}):
+        return False
+    data = load_cv_data_from_disk()
+    now = time.time()
+    col.insert_one({"slug": CV_SLUG, "data": data, "updated": now})
+    _cv_cache["data"] = data
+    _cv_cache["updated"] = now
+    print("[startup] Seeded MongoDB cv.cv_data from cv_data.json")
+    return True
+
+
+def invalidate_cv_cache():
+    _cv_cache["data"] = None
+    _cv_cache["updated"] = None
+
+
 def get_cv_data():
-    """Always read the latest CV source data from disk."""
-    return load_cv_data()
+    """Return CV source data from Mongo (cached), falling back to disk."""
+    if _cv_cache["data"] is not None:
+        return copy.deepcopy(_cv_cache["data"])
+    try:
+        col = get_mongo_collection()
+        doc = col.find_one({"slug": CV_SLUG}, projection={"_id": 0, "data": 1, "updated": 1})
+        if doc and doc.get("data") is not None:
+            _cv_cache["data"] = doc["data"]
+            _cv_cache["updated"] = doc.get("updated")
+            return copy.deepcopy(doc["data"])
+    except Exception as exc:
+        print(f"[cv] Mongo read failed, falling back to disk: {exc}")
+    data = load_cv_data_from_disk()
+    _cv_cache["data"] = data
+    _cv_cache["updated"] = os.path.getmtime(CV_JSON_PATH) if os.path.exists(CV_JSON_PATH) else None
+    return copy.deepcopy(data)
+
+
+def save_cv_data(data):
+    """Persist CV JSON to Mongo and refresh the in-memory cache."""
+    if not isinstance(data, dict):
+        raise ValueError("CV data must be a JSON object")
+    now = time.time()
+    col = get_mongo_collection()
+    col.replace_one(
+        {"slug": CV_SLUG},
+        {"slug": CV_SLUG, "data": data, "updated": now},
+        upsert=True,
+    )
+    _cv_cache["data"] = data
+    _cv_cache["updated"] = now
+    return now
+
+
+def is_authenticated():
+    return bool(session.get("authenticated"))
+
+
+def require_auth(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not is_authenticated():
+            return jsonify({"error": "Authentication required"}), 401
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def ensure_runtime():
+    """Fonts + Mongo seed — runs once per process (needed on Vercel where __main__ never runs)."""
+    global _runtime_ready
+    if _runtime_ready:
+        return
+    register_fonts()
+    try:
+        seed_mongo_if_empty()
+        get_cv_data()
+    except Exception as exc:
+        print(f"[startup] MongoDB unavailable ({exc}); using cv_data.json fallback")
+    _runtime_ready = True
+
+
+@app.before_request
+def _ensure_runtime_before_request():
+    ensure_runtime()
 
 # Layout constants tuned to 1 cm page margins.
 CM = inch / 2.54
@@ -1404,27 +1539,79 @@ def generate_layout_candidates(data, title="Resume", pdf_title=None):
         )
     return layouts
 
-# ─── Pre-compile CV on startup ───
+# ─── Pre-compile / cache CV PDF ───
 def cv_pdf_is_stale():
-    if not os.path.exists(CV_PDF_PATH):
-        return True
-    if not os.path.exists(CV_JSON_PATH):
+    get_cv_data()
+    updated = _cv_cache.get("updated")
+    if _pdf_cache.get("bytes") is not None and _pdf_cache.get("updated") == updated:
         return False
-    return os.path.getmtime(CV_JSON_PATH) > os.path.getmtime(CV_PDF_PATH)
+    if not os.path.exists(CV_PDF_PATH):
+        # Bundled repo PDF is usable until Mongo data is newer than the file mtime.
+        if os.path.exists(REPO_CV_PDF_PATH) and updated is not None:
+            try:
+                if float(updated) <= os.path.getmtime(REPO_CV_PDF_PATH):
+                    return False
+            except OSError:
+                pass
+        return True
+    if updated is None:
+        return True
+    return float(updated) > os.path.getmtime(CV_PDF_PATH)
+
+
+def regenerate_cv_pdf():
+    """Generate the full CV PDF into memory (and /tmp or repo path when writable)."""
+    print("[cv] Generating CV PDF from MongoDB data...")
+    filtered = filter_cv({}, force_include_all_projects=True)
+    pdf_bytes, err = generate_pdf(filtered, "CV", include_all_projects=True)
+    if not pdf_bytes:
+        print(f"[cv] CV generation failed: {err}")
+        return False
+    _pdf_cache["bytes"] = pdf_bytes
+    _pdf_cache["updated"] = _cv_cache.get("updated")
+    try:
+        with open(CV_PDF_PATH, "wb") as f:
+            f.write(pdf_bytes)
+        print(f"[cv] CV PDF generated ({len(pdf_bytes)} bytes) → {CV_PDF_PATH}")
+    except OSError as exc:
+        # Expected on a fully read-only FS; memory cache still serves the PDF.
+        print(f"[cv] CV PDF kept in memory only (disk write failed: {exc})")
+    return True
+
+
+def load_pdf_bytes_from_disk():
+    for path in (CV_PDF_PATH, REPO_CV_PDF_PATH):
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, "rb") as f:
+                return f.read()
+        except OSError:
+            continue
+    return None
+
+
+def get_cv_pdf_bytes():
+    """Return current CV PDF bytes, regenerating when Mongo data is newer."""
+    get_cv_data()
+    updated = _cv_cache.get("updated")
+    if _pdf_cache.get("bytes") is not None and _pdf_cache.get("updated") == updated:
+        return _pdf_cache["bytes"]
+
+    if not cv_pdf_is_stale():
+        disk = load_pdf_bytes_from_disk()
+        if disk:
+            _pdf_cache["bytes"] = disk
+            _pdf_cache["updated"] = updated
+            return disk
+
+    if regenerate_cv_pdf():
+        return _pdf_cache.get("bytes")
+    return load_pdf_bytes_from_disk()
 
 
 def ensure_cv_pdf():
-    if not cv_pdf_is_stale():
-        return
-    print("[startup] Generating CV PDF from cv_data.json...")
-    filtered = filter_cv({}, force_include_all_projects=True)
-    pdf_bytes, err = generate_pdf(filtered, "CV", include_all_projects=True)
-    if pdf_bytes:
-        with open(CV_PDF_PATH, "wb") as f:
-            f.write(pdf_bytes)
-        print(f"[startup] CV PDF generated ({len(pdf_bytes)} bytes)")
-    else:
-        print(f"[startup] CV generation failed: {err}")
+    get_cv_pdf_bytes()
 
 # ─── Routes ───
 def render_index_html():
@@ -1444,21 +1631,83 @@ def index():
 
 @app.route("/api/cv.pdf")
 def get_cv_pdf():
-    ensure_cv_pdf()
-    if os.path.exists(CV_PDF_PATH):
-        return send_file(CV_PDF_PATH, mimetype="application/pdf",
-                         download_name="advayth_pashupati_cv.pdf")
+    pdf_bytes = get_cv_pdf_bytes()
+    if pdf_bytes:
+        return send_file(
+            BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            download_name="advayth_pashupati_cv.pdf",
+        )
     return jsonify({"error": "CV PDF not available"}), 500
 
 
 @app.route("/api/data")
 def get_cv_json():
-    """Expose the latest cv_data.json to automated agents."""
+    """Expose the latest CV JSON (MongoDB) to automated agents."""
     try:
         data = get_cv_data()
-        return jsonify({"source": "cv_data.json", "updated": os.path.getmtime(CV_JSON_PATH), "data": data})
+        updated = _cv_cache.get("updated")
+        return jsonify({
+            "source": "mongodb",
+            "updated": updated,
+            "data": data,
+        })
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/cv", methods=["PUT", "OPTIONS"])
+def put_cv():
+    if request.method == "OPTIONS":
+        return "", 204
+    if not is_authenticated():
+        return jsonify({"error": "Authentication required"}), 401
+    payload = request.get_json(force=True, silent=True)
+    if payload is None:
+        return jsonify({"error": "Invalid JSON body"}), 400
+    data = payload.get("data", payload) if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return jsonify({"error": "CV data must be a JSON object"}), 400
+    try:
+        updated = save_cv_data(data)
+        ok = regenerate_cv_pdf()
+        if not ok:
+            return jsonify({
+                "error": "Saved to MongoDB but PDF regeneration failed",
+                "updated": updated,
+            }), 500
+        return jsonify({"ok": True, "updated": updated, "source": "mongodb"})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/auth/login", methods=["POST", "OPTIONS"])
+def auth_login():
+    if request.method == "OPTIONS":
+        return "", 204
+    if not EDIT_PASSWORD:
+        return jsonify({"error": "EDIT_PASSWORD is not configured on the server"}), 500
+    body = request.get_json(force=True, silent=True) or {}
+    password = body.get("password", "")
+    if not password or password != EDIT_PASSWORD:
+        return jsonify({"error": "Invalid password"}), 401
+    session.clear()
+    session["authenticated"] = True
+    return jsonify({"authenticated": True})
+
+
+@app.route("/api/auth/logout", methods=["POST", "OPTIONS"])
+def auth_logout():
+    if request.method == "OPTIONS":
+        return "", 204
+    session.clear()
+    return jsonify({"authenticated": False})
+
+
+@app.route("/api/auth/me")
+def auth_me():
+    return jsonify({"authenticated": is_authenticated()})
+
 
 @app.route("/api/compile", methods=["POST", "OPTIONS"])
 def compile_resume():
@@ -1552,141 +1801,17 @@ def compile_raw():
 
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok", "pdf_engine": "reportlab"})
+    return jsonify({
+        "status": "ok",
+        "pdf_engine": "reportlab",
+        "vercel": IS_VERCEL,
+        "secure_cookie": SESSION_COOKIE_SECURE,
+    })
 
-
-def _safe_config_name(name):
-    base = os.path.basename(str(name or "").strip())
-    if not base or base in (".", ".."):
-        return None
-    if not base.endswith(".cfg"):
-        base += ".cfg"
-    if base != os.path.basename(base):
-        return None
-    return base
-
-
-def _config_path(name):
-    safe = _safe_config_name(name)
-    if not safe:
-        return None
-    return os.path.join(CONFIGS_DIR, safe)
-
-
-def _config_target(name):
-    return "resume"
-
-
-def ensure_configs_dir():
-    os.makedirs(CONFIGS_DIR, exist_ok=True)
-
-
-def list_config_files():
-    ensure_configs_dir()
-    names = []
-    for entry in os.listdir(CONFIGS_DIR):
-        if entry.endswith(".cfg") and os.path.isfile(os.path.join(CONFIGS_DIR, entry)):
-            names.append(entry)
-    return sorted(names)
-
-
-def read_config_file(name):
-    path = _config_path(name)
-    if not path or not os.path.isfile(path):
-        return None
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-
-def write_config_file(name, content):
-    path = _config_path(name)
-    if not path:
-        raise ValueError("Invalid config filename")
-    ensure_configs_dir()
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(content or "")
-
-
-def delete_config_file(name):
-    safe = _safe_config_name(name)
-    if not safe or safe in PROTECTED_CONFIGS:
-        return False
-    path = os.path.join(CONFIGS_DIR, safe)
-    if not os.path.isfile(path):
-        return False
-    os.remove(path)
-    return True
-
-
-@app.route("/api/configs", methods=["GET", "POST", "OPTIONS"])
-def configs_collection():
-    if request.method == "OPTIONS":
-        return "", 204
-    if request.method == "GET":
-        files = []
-        for name in list_config_files():
-            files.append({
-                "name": name,
-                "target": _config_target(name),
-                "readonly": name in PROTECTED_CONFIGS,
-            })
-        return jsonify({"files": files})
-
-    data = request.get_json(force=True) or {}
-    name = data.get("name", "")
-    content = data.get("content", "")
-    safe = _safe_config_name(name)
-    if not safe:
-        return jsonify({"error": "Invalid config filename"}), 400
-    path = _config_path(safe)
-    if os.path.exists(path):
-        return jsonify({"error": f"{safe} already exists"}), 409
-    try:
-        write_config_file(safe, content)
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    return jsonify({"name": safe, "target": _config_target(safe), "readonly": safe in PROTECTED_CONFIGS})
-
-
-@app.route("/api/configs/<path:filename>", methods=["GET", "PUT", "DELETE", "OPTIONS"])
-def config_file(filename):
-    if request.method == "OPTIONS":
-        return "", 204
-    safe = _safe_config_name(filename)
-    if not safe:
-        return jsonify({"error": "Invalid config filename"}), 400
-
-    if request.method == "GET":
-        content = read_config_file(safe)
-        if content is None:
-            return jsonify({"error": f"{safe} not found"}), 404
-        return jsonify({
-            "name": safe,
-            "content": content,
-            "target": _config_target(safe),
-            "readonly": safe in PROTECTED_CONFIGS,
-        })
-
-    if request.method == "PUT":
-        if safe in PROTECTED_CONFIGS:
-            return jsonify({"error": f"{safe} is read-only"}), 403
-        data = request.get_json(force=True) or {}
-        try:
-            write_config_file(safe, data.get("content", ""))
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
-        return jsonify({"name": safe, "target": _config_target(safe), "readonly": False})
-
-    if safe in PROTECTED_CONFIGS:
-        return jsonify({"error": f"{safe} cannot be deleted"}), 403
-    if not delete_config_file(safe):
-        return jsonify({"error": f"{safe} not found"}), 404
-    return jsonify({"deleted": safe})
 
 if __name__ == "__main__":
-    register_fonts()
-    ensure_configs_dir()
+    ensure_runtime()
     ensure_cv_pdf()
-    port = 5000
+    port = int(os.environ.get("PORT", "5000"))
     print(f"[server] Starting on http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=False)

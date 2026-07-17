@@ -96,10 +96,10 @@ def get_mongo_collection():
     """Return the cv.cv_data collection, creating the client lazily."""
     global _mongo_client
     if _mongo_client is None:
-        if not MONGO_URI:
-            raise RuntimeError("MONGO_URI must be set in .env")
+        if not MONGODB_URI:
+            raise RuntimeError("MONGODB_URI must be set in .env")
         _mongo_client = MongoClient(
-            MONGO_URI,
+            MONGODB_URI,
             serverSelectionTimeoutMS=8000,
             connectTimeoutMS=10000,
             tls=True,

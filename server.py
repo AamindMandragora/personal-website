@@ -59,7 +59,7 @@ if IS_VERCEL:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-MONGO_URI = os.environ.get("MONGO_URI", "").strip()
+MONGODB_URI = os.environ.get("MONGODB_URI", "").strip()
 EDIT_PASSWORD = os.environ.get("EDIT_PASSWORD", "")
 CV_SLUG = "main"
 _MONGO_TRANSIENT = (AutoReconnect, ConnectionFailure, ServerSelectionTimeoutError)

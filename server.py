@@ -69,7 +69,7 @@ CV_SLUG = "main"
 _MONGO_TRANSIENT = (AutoReconnect, ConnectionFailure, ServerSelectionTimeoutError)
 
 _mongo_client = None
-_cv_cache = {"data": None, "updated": None}
+_cv_cache = {"data": None, "updated": None, "source": None}
 _comments_cache = {"comments": None}
 _pdf_cache = {"bytes": None, "updated": None}
 _runtime_ready = False
@@ -147,6 +147,7 @@ def seed_mongo_if_empty():
         col.insert_one({"slug": CV_SLUG, "data": data, "comments": [], "updated": now})
         _cv_cache["data"] = data
         _cv_cache["updated"] = now
+        _cv_cache["source"] = "mongodb"
         _comments_cache["comments"] = []
         print("[startup] Seeded MongoDB cv.cv_data from cv_data.json")
         return True
@@ -157,6 +158,7 @@ def seed_mongo_if_empty():
 def invalidate_cv_cache():
     _cv_cache["data"] = None
     _cv_cache["updated"] = None
+    _cv_cache["source"] = None
     _comments_cache["comments"] = None
 
 
@@ -180,6 +182,7 @@ def get_cv_data(*, refresh=False, allow_disk_fallback=True):
         if doc and doc.get("data") is not None:
             _cv_cache["data"] = doc["data"]
             _cv_cache["updated"] = doc.get("updated")
+            _cv_cache["source"] = "mongodb"
             return copy.deepcopy(doc["data"])
         if not allow_disk_fallback:
             raise RuntimeError("MongoDB has no CV document for slug={!r}".format(CV_SLUG))
@@ -192,12 +195,13 @@ def get_cv_data(*, refresh=False, allow_disk_fallback=True):
     data = load_cv_data_from_disk()
     _cv_cache["data"] = data
     _cv_cache["updated"] = os.path.getmtime(CV_JSON_PATH) if os.path.exists(CV_JSON_PATH) else None
+    _cv_cache["source"] = "disk"
     return copy.deepcopy(data)
 
 
-def get_comments():
+def get_comments(*, refresh=False):
     """Return editor comments from Mongo (cached). Not part of public CV JSON."""
-    if _comments_cache["comments"] is not None:
+    if not refresh and _comments_cache["comments"] is not None:
         return copy.deepcopy(_comments_cache["comments"])
     try:
         def _read(col):
@@ -294,6 +298,7 @@ def save_cv_data(data, *, allow_disk_fallback=False):
             write_cv_data_to_disk(data)
             _cv_cache["data"] = data
             _cv_cache["updated"] = now
+            _cv_cache["source"] = "disk"
             return now
         raise RuntimeError(f"MongoDB write failed: {exc}") from exc
 
@@ -303,6 +308,7 @@ def save_cv_data(data, *, allow_disk_fallback=False):
         print(f"[cv] Disk mirror skipped: {exc}")
     _cv_cache["data"] = data
     _cv_cache["updated"] = now
+    _cv_cache["source"] = "mongodb"
     return now
 
 
@@ -1875,13 +1881,14 @@ def get_cv_pdf_bytes(force=False):
     if force:
         _cv_cache["data"] = None
         _cv_cache["updated"] = None
+        _cv_cache["source"] = None
         _pdf_cache["bytes"] = None
         _pdf_cache["updated"] = None
         if not regenerate_cv_pdf(require_mongo=True):
             raise RuntimeError("PDF regeneration from MongoDB failed")
         return _pdf_cache.get("bytes")
 
-    get_cv_data()
+    get_cv_data(refresh=True)
     updated = _cv_cache.get("updated")
     if _pdf_cache.get("bytes") is not None and _pdf_cache.get("updated") == updated:
         return _pdf_cache["bytes"]
@@ -1938,10 +1945,12 @@ def get_cv_pdf():
 def get_cv_json():
     """Expose the latest CV JSON (MongoDB) to automated agents."""
     try:
-        data = get_cv_data()
+        # Always re-read Mongo so warm Vercel instances / long-lived local
+        # servers don't serve a stale in-memory snapshot to the editor.
+        data = get_cv_data(refresh=True)
         updated = _cv_cache.get("updated")
         return jsonify({
-            "source": "mongodb",
+            "source": _cv_cache.get("source") or "unknown",
             "updated": updated,
             "data": data,
         })
@@ -1984,7 +1993,7 @@ def comments_collection():
 
     if request.method == "GET":
         try:
-            return jsonify({"comments": get_comments()})
+            return jsonify({"comments": get_comments(refresh=True)})
         except Exception as exc:
             return jsonify({"error": str(exc)}), 500
 

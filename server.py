@@ -1199,7 +1199,12 @@ def _simulate_tailored_bottom(c, plan, start_y, content_w):
 
 
 def _pack_bullet_counts(c, items, start_y, min_bullets, max_bullets, content_w, floor_y=BOTTOM):
-    """Fit as many leading items as possible; trim last items first, refill earlier first."""
+    """Fit as many leading items as possible with balanced bullet counts.
+
+    Trim the currently densest entries first (later ties first); refill the
+    currently sparsest entries first (earlier ties first). Avoids lopsided
+    layouts like [3, 3, 1, 1] when [2, 2, 2, 2] / [2, 2, 2, 1] would fit.
+    """
     if not items:
         return []
 
@@ -1225,34 +1230,40 @@ def _pack_bullet_counts(c, items, start_y, min_bullets, max_bullets, content_w, 
         else:
             counts = caps[:]
 
-        # Trim from the end so earlier entries keep denser variants.
+        # Trim densest-first so remaining counts stay as even as possible.
         while not fits(subset, counts):
-            trimmed = False
-            for idx in range(item_count - 1, -1, -1):
+            candidates = []
+            for idx in range(item_count):
                 nxt = _next_lower_bullet_count(subset[idx], counts[idx], lo, max_bullets)
                 if nxt is not None:
-                    counts[idx] = nxt
-                    trimmed = True
-                    break
-            if not trimmed:
+                    candidates.append((counts[idx], idx, nxt))
+            if not candidates:
                 break
+            # Highest count first; among ties, trim later entries first.
+            _, idx, nxt = max(candidates, key=lambda t: (t[0], t[1]))
+            counts[idx] = nxt
 
         if not fits(subset, counts):
             continue
 
-        # Refill from the front so the last entry is the only short one when needed.
+        # Refill sparsest-first so extras spread evenly instead of stacking up front.
         changed = True
         while changed:
             changed = False
+            candidates = []
             for idx in range(item_count):
                 nxt = _next_higher_bullet_count(subset[idx], counts[idx], max_bullets)
                 if nxt is not None and nxt <= caps[idx]:
-                    trial = counts[:]
-                    trial[idx] = nxt
-                    if fits(subset, trial):
-                        counts = trial
-                        changed = True
-                        break
+                    candidates.append((counts[idx], idx, nxt))
+            # Lowest count first; among ties, prefer earlier entries.
+            candidates.sort(key=lambda t: (t[0], t[1]))
+            for _, idx, nxt in candidates:
+                trial = counts[:]
+                trial[idx] = nxt
+                if fits(subset, trial):
+                    counts = trial
+                    changed = True
+                    break
 
         return list(zip(subset, counts))
 
@@ -1281,11 +1292,16 @@ def _layout_metrics(c, plan, start_y, content_w):
     research_items = plan.get("research") or []
     experience_items = plan.get("experience") or []
     bullets = sum(count for _, count in research_items + experience_items + project_items)
+    project_bullets = sum(count for _, count in project_items)
+    project_n = len(project_items)
+    avg_project_bullets = (project_bullets / project_n) if project_n else 0.0
     return {
         "slack": slack,
         "fill": fill,
         "bullets": bullets,
-        "projects": len(project_items),
+        "project_bullets": project_bullets,
+        "avg_project_bullets": avg_project_bullets,
+        "projects": project_n,
         "experience": len(experience_items),
         "research": len(research_items),
         "bottom_y": bottom_y,
@@ -1336,15 +1352,16 @@ def _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, conten
     research = list(data.get("research", []))
     experience = list(data.get("experience", []))
     projects = list(data.get("projects", []))
-    lo = max(1, min_bullets) if min_bullets is not None else 1
     hi = max_bullets if max_bullets is not None else None
 
     # Try several prefix bullet budgets so projects can reclaim space.
+    # Always allow prefix down to 1 bullet even when min_bullets > 1 — the min
+    # still applies to projects; research/experience can thin out to fit more.
     prefix_caps = []
     if hi is None:
         prefix_caps = [None]
     else:
-        for cap in range(hi, lo - 1, -1):
+        for cap in range(hi, 0, -1):
             prefix_caps.append(cap)
         if not prefix_caps:
             prefix_caps = [hi]
@@ -1353,8 +1370,12 @@ def _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, conten
     seen = set()
 
     for prefix_cap in prefix_caps:
+        # Prefix sections may use a lower floor than project min_bullets.
+        prefix_min = min_bullets
+        if prefix_cap is not None and (prefix_min is None or prefix_cap < prefix_min):
+            prefix_min = prefix_cap
         prefix = _pack_prefix_sections(
-            c, research, experience, min_bullets, prefix_cap, start_y, content_w
+            c, research, experience, prefix_min, prefix_cap, start_y, content_w
         )
         y_projects = prefix["y_after"]
 
@@ -1404,8 +1425,23 @@ def _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, conten
     return plans
 
 
+def _most_projects_key(entry):
+    m = entry["metrics"]
+    return (m["projects"], m["avg_project_bullets"], m["fill"])
+
+
+def _most_bullets_key(entry):
+    m = entry["metrics"]
+    return (m["avg_project_bullets"], m["fill"], m["projects"])
+
+
+def _tightest_fill_key(entry):
+    m = entry["metrics"]
+    return (m["fill"], m["avg_project_bullets"], m["projects"])
+
+
 def _select_layout_candidates(scored_plans):
-    """Pick up to three diverse layouts: tightest fill, most projects, most bullets."""
+    """Pick up to three diverse layouts: most projects, most avg bullets/project, densest fill."""
     if not scored_plans:
         return []
 
@@ -1443,31 +1479,34 @@ def _select_layout_candidates(scored_plans):
                 return entry
         return None
 
-    densest = add_best(
-        lambda e: (e["metrics"]["fill"], e["metrics"]["bullets"], e["metrics"]["projects"]),
-        "tightest_fill",
-        "Tightest fill",
-    )
+    # Prefer most-projects first so that option is never displaced by densest-fill.
+    max_projects = max(e["metrics"]["projects"] for e in scored_plans)
+    max_avg = max(e["metrics"]["avg_project_bullets"] for e in scored_plans)
     add_best(
-        lambda e: (e["metrics"]["projects"], e["metrics"]["fill"], e["metrics"]["bullets"]),
+        _most_projects_key,
         "most_projects",
         lambda e: (
             "Most projects"
-            if densest is None or e["metrics"]["projects"] >= densest["metrics"]["projects"]
-            else "Balanced"
+            if e["metrics"]["projects"] >= max_projects
+            else "More projects"
         ),
     )
     add_best(
-        lambda e: (e["metrics"]["bullets"], e["metrics"]["fill"], e["metrics"]["projects"]),
+        _most_bullets_key,
         "most_bullets",
-        "Most bullets",
+        lambda e: (
+            "Most bullets"
+            if e["metrics"]["avg_project_bullets"] >= max_avg - 1e-9
+            else "Denser bullets"
+        ),
+    )
+    add_best(
+        _tightest_fill_key,
+        "tightest_fill",
+        "Tightest fill",
     )
 
-    leftovers = sorted(
-        scored_plans,
-        key=lambda e: (e["metrics"]["fill"], e["metrics"]["bullets"], e["metrics"]["projects"]),
-        reverse=True,
-    )
+    leftovers = sorted(scored_plans, key=_tightest_fill_key, reverse=True)
     for idx, entry in enumerate(leftovers):
         if len(chosen) >= 3:
             break
@@ -1481,27 +1520,19 @@ def _plan_tailored_resume(c, data, start_y, min_bullets, max_bullets, content_w,
         return {"research": [], "experience": [], "projects": []}
     strategy_key = (strategy or "tightest_fill").strip().lower()
     if strategy_key in ("most_projects", "projects"):
-        best = max(
-            scored,
-            key=lambda e: (e["metrics"]["projects"], e["metrics"]["bullets"], e["metrics"]["fill"]),
-        )
+        best = max(scored, key=_most_projects_key)
     elif strategy_key in ("most_bullets", "bullets"):
-        best = max(
-            scored,
-            key=lambda e: (e["metrics"]["bullets"], e["metrics"]["fill"], e["metrics"]["projects"]),
-        )
+        best = max(scored, key=_most_bullets_key)
     else:
-        best = max(
-            scored,
-            key=lambda e: (e["metrics"]["fill"], e["metrics"]["bullets"], e["metrics"]["projects"]),
-        )
+        best = max(scored, key=_tightest_fill_key)
     return best["plan"]
 
 
 def _layout_summary(metrics):
     slack_in = metrics["slack"] / 72.0
+    avg = metrics.get("avg_project_bullets", 0.0)
     return (
-        f"{metrics['projects']} projects · {metrics['bullets']} bullets · "
+        f"{metrics['projects']} projects · {avg:.1f} bullets/project · "
         f"~{slack_in:.2f}\" free"
     )
 
@@ -1803,6 +1834,9 @@ def generate_layout_candidates(data, title="Resume", pdf_title=None):
                 "metrics": {
                     "projects": cand["metrics"]["projects"],
                     "bullets": cand["metrics"]["bullets"],
+                    "avg_project_bullets": round(
+                        cand["metrics"].get("avg_project_bullets", 0.0), 2
+                    ),
                     "slack_in": round(cand["metrics"]["slack"] / 72.0, 2),
                     "fill": round(cand["metrics"]["fill"], 3),
                 },

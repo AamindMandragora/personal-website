@@ -3,7 +3,7 @@
 server.py — Flask backend for the Resume IDE.
 Endpoints:
   GET  /                    → serves the frontend
-  GET  /api/cv.pdf          → returns the pre-compiled full CV PDF
+  GET  /api/cv.pdf          → returns the CV PDF (?force=1 rebuilds from Mongo)
   GET  /api/data            → public CV JSON (from MongoDB)
   PUT  /api/cv              → replace CV document (auth required); regen PDF
   GET  /api/comments        → list editor comments (auth)
@@ -1843,8 +1843,21 @@ def load_pdf_bytes_from_disk():
     return None
 
 
-def get_cv_pdf_bytes():
-    """Return current CV PDF bytes, regenerating when Mongo data is newer."""
+def get_cv_pdf_bytes(force=False):
+    """Return current CV PDF bytes, regenerating when Mongo data is newer.
+
+    When force=True, drop memory/disk caches, reload CV data from Mongo,
+    and rebuild the PDF from scratch.
+    """
+    if force:
+        _cv_cache["data"] = None
+        _cv_cache["updated"] = None
+        _pdf_cache["bytes"] = None
+        _pdf_cache["updated"] = None
+        if regenerate_cv_pdf():
+            return _pdf_cache.get("bytes")
+        return load_pdf_bytes_from_disk()
+
     get_cv_data()
     updated = _cv_cache.get("updated")
     if _pdf_cache.get("bytes") is not None and _pdf_cache.get("updated") == updated:
@@ -1883,7 +1896,8 @@ def index():
 
 @app.route("/api/cv.pdf")
 def get_cv_pdf():
-    pdf_bytes = get_cv_pdf_bytes()
+    force = request.args.get("force", "").strip().lower() in ("1", "true", "yes")
+    pdf_bytes = get_cv_pdf_bytes(force=force)
     if pdf_bytes:
         return send_file(
             BytesIO(pdf_bytes),

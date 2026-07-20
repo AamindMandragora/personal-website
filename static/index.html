@@ -147,7 +147,7 @@
   .cv-mini-btn { border:1px solid var(--doc-rule); background:#fff; color:var(--doc-muted); font-family:'Source Sans 3', system-ui, sans-serif; font-size:11px; padding:3px 8px; border-radius:3px; cursor:pointer; }
   .cv-mini-btn:hover { border-color:#b8b2a4; color:var(--doc-ink); }
   .cv-mini-btn.danger:hover { border-color:#c44; color:#c44; }
-  .cv-section-actions { margin-top:10px; display:flex; gap:8px; }
+  .cv-section-actions { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
   .cv-tags-input { font-size:12px; color:var(--doc-muted); }
   .cv-list-plain .cv-bullet-row::before { content:""; width:0; padding:0; }
   .cv-table { width:100%; border-collapse:collapse; font-family:'Source Sans 3', system-ui, sans-serif; font-size:13px; margin-top:4px; }
@@ -155,6 +155,29 @@
   .cv-table td { padding:4px 8px 4px 0; vertical-align:middle; border-bottom:1px solid #f0ece3; }
   .cv-table td:last-child { width:40px; padding-right:0; }
   .cv-table .cv-input { padding:5px 6px; }
+  .cv-comment-badge { font-size:10px; background:#eef3f8; color:var(--doc-accent); border:1px solid #c5d4e8; border-radius:3px; padding:1px 6px; margin-left:4px; }
+  .cv-comment-badge.open { background:#f8f0e8; color:#8a5a00; border-color:#e0c9a0; }
+  .cv-comments { margin-top:10px; padding:10px 12px; background:#f3f1ea; border:1px solid var(--doc-rule); border-radius:4px; font-family:'Source Sans 3', system-ui, sans-serif; }
+  .cv-comments-title { font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--doc-muted); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .cv-comment { padding:8px 0; border-top:1px solid #e4dfd4; }
+  .cv-comment:first-of-type { border-top:none; padding-top:0; }
+  .cv-comment.resolved { opacity:0.55; }
+  .cv-comment-meta { font-size:11px; color:var(--doc-muted); margin-bottom:4px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .cv-comment-body { font-size:13px; line-height:1.45; white-space:pre-wrap; color:var(--doc-ink); }
+  .cv-comment-quote { font-size:11px; color:var(--doc-muted); font-style:italic; margin-bottom:4px; border-left:2px solid #c5d4e8; padding-left:8px; }
+  .cv-comment-compose { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .cv-comment-compose textarea { min-height:56px; background:#fff; border:1px solid var(--doc-rule); border-radius:3px; padding:6px 8px; font:inherit; color:var(--doc-ink); resize:vertical; }
+  .cv-toolbar-menus { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .cv-dropdown { position:relative; display:inline-block; }
+  .cv-dropdown-menu { display:none; position:absolute; right:0; top:calc(100% + 4px); background:#2d2d2d; border:1px solid var(--border); border-radius:4px; min-width:140px; z-index:20; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
+  .cv-dropdown.open .cv-dropdown-menu { display:block; }
+  .cv-dropdown-menu button { display:block; width:100%; text-align:left; background:none; border:none; color:var(--text); font-family:var(--font); font-size:11px; padding:8px 12px; cursor:pointer; }
+  .cv-dropdown-menu button:hover { background:var(--hover); }
+  .modal.wide { width:min(560px, 94vw); }
+  .modal textarea.import-area { width:100%; min-height:220px; background:#1e1e1e; border:1px solid var(--border); color:var(--text); padding:10px; font-family:var(--font); font-size:12px; border-radius:3px; outline:none; resize:vertical; margin-bottom:12px; }
+  .modal-tabs { display:flex; gap:4px; margin-bottom:10px; }
+  .modal-tabs button { background:#3c3c3c; border:1px solid var(--border); color:var(--dim); font-family:var(--font); font-size:11px; padding:4px 10px; border-radius:3px; cursor:pointer; }
+  .modal-tabs button.active { color:var(--text); border-color:var(--accent); }
   @media (max-width: 720px) {
     .cv-paper { padding:28px 20px; }
     .cv-field-row { grid-template-columns:1fr; gap:2px; }
@@ -212,6 +235,9 @@
 const INDUSTRY_TAGS = ["systems","networking","ai_ml","formal_methods","fullstack","math","pedagogy","compilers","quant_finance","security"];
 const PROJECT_IDS = ["malloc","pragma","squishy","lean4game","audio_relay","logana","cherimoya","sigecom","fin_eng"];
 const PRESETS_KEY = "resumePresets.v1";
+const AUTHOR_KEY = "cvCommentAuthor";
+const ENTRY_SECTIONS = ["research", "experience", "projects"];
+const ENTRY_SECTION_TITLES = { research: "Research", experience: "Experience", projects: "Projects" };
 
 const NEW_CFG_TEMPLATE = `# Resume Configuration
 # Edit filters, press ▶ Run to generate PDF
@@ -253,6 +279,10 @@ let authenticated = false;
 let cvDraft = null;
 let cvSaving = false;
 let loginError = "";
+let cvComments = [];
+let commentFocus = null; // { section, entryId, bullet: null | { variant, index } }
+let commentBusy = false;
+let importModal = null; // { scope: "cv"|"entry", section?, idx?, format: "text"|"json" }
 
 let cvBlobUrl = null;
 let generatedBlobUrl = null;
@@ -409,6 +439,8 @@ async function logout() {
   await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
   authenticated = false;
   updateAuthButtons();
+  cvComments = [];
+  commentFocus = null;
   if (activeFile === "__cv_edit__") {
     closeCvEditor(false);
   }
@@ -471,6 +503,7 @@ async function openCvEditor() {
     const payload = await resp.json();
     cvDraft = structuredClone(payload.data || {});
     ensureCvShape(cvDraft);
+    await loadComments();
     if (!openTabs.includes("__cv_edit__")) openTabs.push("__cv_edit__");
     activeFile = "__cv_edit__";
     log("info", "Opened CV editor");
@@ -482,6 +515,8 @@ async function openCvEditor() {
 
 function closeCvEditor(discard = true) {
   if (discard) cvDraft = null;
+  cvComments = [];
+  commentFocus = null;
   openTabs = openTabs.filter(t => t !== "__cv_edit__");
   if (activeFile === "__cv_edit__") {
     activeFile = openTabs.length ? openTabs[openTabs.length - 1] : "cv.pdf";
@@ -702,6 +737,630 @@ async function saveCvDraft() {
   } finally {
     cvSaving = false;
     render();
+  }
+}
+
+// ─── Editor comments ───
+async function loadComments() {
+  try {
+    const resp = await fetch("/api/comments", { credentials: "same-origin" });
+    if (resp.status === 401) {
+      cvComments = [];
+      return;
+    }
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    cvComments = Array.isArray(data.comments) ? data.comments : [];
+  } catch (e) {
+    cvComments = [];
+    log("warn", `Comments unavailable: ${e.message}`);
+  }
+}
+
+function getCommentAuthor() {
+  try {
+    return (localStorage.getItem(AUTHOR_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function ensureCommentAuthor() {
+  let author = getCommentAuthor();
+  if (author) return author;
+  author = (window.prompt("Display name for comments?", "Editor") || "").trim();
+  if (!author) author = "Editor";
+  try {
+    localStorage.setItem(AUTHOR_KEY, author);
+  } catch { /* ignore */ }
+  return author;
+}
+
+function commentsForEntry(section, entryId) {
+  return cvComments.filter(c => c.section === section && c.entryId === entryId);
+}
+
+function commentsForFocus(focus) {
+  if (!focus) return [];
+  return commentsForEntry(focus.section, focus.entryId).filter(c => {
+    if (!focus.bullet) return !c.bullet;
+    if (!c.bullet) return false;
+    return String(c.bullet.variant) === String(focus.bullet.variant)
+      && Number(c.bullet.index) === Number(focus.bullet.index);
+  });
+}
+
+function unresolvedCommentCount(list) {
+  return (list || []).filter(c => !c.resolved).length;
+}
+
+function bulletCommentCount(section, entryId, variant, index) {
+  return commentsForEntry(section, entryId).filter(c =>
+    c.bullet
+    && String(c.bullet.variant) === String(variant)
+    && Number(c.bullet.index) === Number(index)
+  ).length;
+}
+
+function toggleCommentFocus(section, entryId, variant, index) {
+  const bullet = (variant == null || variant === "") ? null : { variant: String(variant), index: Number(index) };
+  const same = commentFocus
+    && commentFocus.section === section
+    && commentFocus.entryId === entryId
+    && ((commentFocus.bullet == null && bullet == null)
+      || (commentFocus.bullet && bullet
+        && String(commentFocus.bullet.variant) === String(bullet.variant)
+        && Number(commentFocus.bullet.index) === Number(bullet.index)));
+  commentFocus = same ? null : { section, entryId, bullet };
+  render();
+}
+
+function closeCommentFocus() {
+  commentFocus = null;
+  render();
+}
+
+function formatCommentTime(ts) {
+  if (!ts) return "";
+  try {
+    return new Date(ts * 1000).toLocaleString();
+  } catch {
+    return "";
+  }
+}
+
+async function handleCommentAuth(resp, data) {
+  if (resp.status === 401) {
+    authenticated = false;
+    updateAuthButtons();
+    throw new Error("Session expired — please log in again");
+  }
+  if (!resp.ok) throw new Error((data && data.error) || `HTTP ${resp.status}`);
+}
+
+async function postComment(section, entryId, body, bullet) {
+  const author = ensureCommentAuthor();
+  const payload = { section, entryId, body, author };
+  if (bullet) payload.bullet = bullet;
+  const resp = await fetch("/api/comments", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await resp.json().catch(() => ({}));
+  await handleCommentAuth(resp, data);
+  if (data.comment) cvComments.push(data.comment);
+  else await loadComments();
+}
+
+async function patchComment(id, patch) {
+  const resp = await fetch(`/api/comments/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  const data = await resp.json().catch(() => ({}));
+  await handleCommentAuth(resp, data);
+  const idx = cvComments.findIndex(c => c.id === id);
+  if (idx >= 0 && data.comment) cvComments[idx] = data.comment;
+  else await loadComments();
+}
+
+async function deleteComment(id) {
+  const resp = await fetch(`/api/comments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
+  const data = await resp.json().catch(() => ({}));
+  await handleCommentAuth(resp, data);
+  cvComments = cvComments.filter(c => c.id !== id);
+}
+
+async function submitCommentCompose(section, entryId, variant, index) {
+  if (commentBusy) return;
+  const ta = document.getElementById("comment-compose-body");
+  if (!ta) return;
+  const body = ta.value.trim();
+  if (!body) return;
+  let bullet = null;
+  if (variant != null && variant !== "") {
+    const entry = (cvDraft?.[section] || []).find(e => e.id === entryId);
+    const list = entry?.bullets?.[String(variant)] || [];
+    const quote = list[Number(index)] || "";
+    bullet = { variant: String(variant), index: Number(index), quote };
+  }
+  commentBusy = true;
+  try {
+    await postComment(section, entryId, body, bullet);
+    log("success", "Comment saved");
+    render();
+  } catch (e) {
+    log("error", `Comment failed: ${e.message}`);
+  } finally {
+    commentBusy = false;
+  }
+}
+
+async function resolveComment(id, resolved) {
+  if (commentBusy) return;
+  commentBusy = true;
+  try {
+    await patchComment(id, { resolved: !!resolved });
+    render();
+  } catch (e) {
+    log("error", `Update failed: ${e.message}`);
+  } finally {
+    commentBusy = false;
+  }
+}
+
+async function removeComment(id) {
+  if (commentBusy) return;
+  if (!window.confirm("Delete this comment?")) return;
+  commentBusy = true;
+  try {
+    await deleteComment(id);
+    log("info", "Comment deleted");
+    render();
+  } catch (e) {
+    log("error", `Delete failed: ${e.message}`);
+  } finally {
+    commentBusy = false;
+  }
+}
+
+function renderCommentThread(section, entryId, bullet) {
+  const focus = { section, entryId, bullet: bullet || null };
+  const list = commentsForFocus(focus);
+  const title = bullet
+    ? `Bullet comments (${bullet.variant}-bullet #${Number(bullet.index) + 1})`
+    : "Entry comments";
+  const variantArg = bullet ? `'${bullet.variant}'` : "null";
+  const indexArg = bullet ? String(bullet.index) : "null";
+  return `
+    <div class="cv-comments">
+      <div class="cv-comments-title">
+        <span>${escapeHtml(title)}</span>
+        <button class="cv-mini-btn" type="button" onclick="closeCommentFocus()">Close</button>
+      </div>
+      ${list.length ? list.map(c => `
+        <div class="cv-comment ${c.resolved ? "resolved" : ""}">
+          <div class="cv-comment-meta">
+            <strong>${escapeHtml(c.author || "Editor")}</strong>
+            <span>${escapeHtml(formatCommentTime(c.created))}</span>
+            ${c.resolved ? "<span>resolved</span>" : ""}
+            <button class="cv-mini-btn" type="button" onclick="resolveComment('${attr(c.id)}', ${c.resolved ? "false" : "true"})">${c.resolved ? "Reopen" : "Resolve"}</button>
+            <button class="cv-mini-btn danger" type="button" onclick="removeComment('${attr(c.id)}')">Delete</button>
+          </div>
+          ${c.bullet?.quote ? `<div class="cv-comment-quote">${escapeHtml(c.bullet.quote)}</div>` : ""}
+          <div class="cv-comment-body">${escapeHtml(c.body)}</div>
+        </div>
+      `).join("") : `<div class="muted" style="font-size:12px;margin-bottom:6px">No comments yet.</div>`}
+      <div class="cv-comment-compose">
+        <textarea id="comment-compose-body" placeholder="Leave a note for the other editor…" ${commentBusy ? "disabled" : ""}></textarea>
+        <div style="display:flex;gap:6px;justify-content:flex-end">
+          <button class="cv-mini-btn" type="button" onclick="submitCommentCompose('${section}','${attr(entryId)}',${variantArg},${indexArg})" ${commentBusy ? "disabled" : ""}>Post comment</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function isCommentFocus(section, entryId, variant, index) {
+  if (!commentFocus || commentFocus.section !== section || commentFocus.entryId !== entryId) return false;
+  if (variant == null || variant === "") return !commentFocus.bullet;
+  return !!commentFocus.bullet
+    && String(commentFocus.bullet.variant) === String(variant)
+    && Number(commentFocus.bullet.index) === Number(index);
+}
+
+// ─── Export / import ───
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+function taggedRowsToText(title, rows) {
+  const lines = [`## ${title}`];
+  for (const row of rows || []) {
+    const tags = (row.tags || []).join(", ");
+    lines.push(tags ? `- ${row.name} | tags: ${tags}` : `- ${row.name}`);
+  }
+  return lines;
+}
+
+function serializeEntryToText(entry) {
+  const lines = [];
+  const idPart = entry.id ? ` [id=${entry.id}]` : "";
+  lines.push(`### ${entry.name || "Untitled"}${idPart}`);
+  if (entry.subtitle) lines.push(`subtitle: ${entry.subtitle}`);
+  if (entry.dates) lines.push(`dates: ${entry.dates}`);
+  if (entry.tags?.length) lines.push(`tags: ${entry.tags.join(", ")}`);
+  const bullets = entry.bullets && typeof entry.bullets === "object" && !Array.isArray(entry.bullets)
+    ? entry.bullets
+    : { "1": Array.isArray(entry.bullets) ? entry.bullets : [""] };
+  const keys = Object.keys(bullets).map(Number).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+  for (const count of keys) {
+    lines.push(`#### bullets:${count}`);
+    for (const b of bullets[String(count)] || []) lines.push(`- ${b}`);
+  }
+  return lines.join("\n");
+}
+
+function serializeCvToText(data) {
+  const lines = [];
+  lines.push(`# ${data.name || ""}`);
+  lines.push("## Contact");
+  for (const key of ["location", "email", "phone", "github", "linkedin"]) {
+    if (data[key]) lines.push(`${key}: ${data[key]}`);
+  }
+  const edu = data.education || {};
+  lines.push("## Education");
+  if (edu.school) lines.push(`school: ${edu.school}`);
+  if (edu.dates) lines.push(`dates: ${edu.dates}`);
+  if (edu.degree) lines.push(`degree: ${edu.degree}`);
+
+  const cw = (edu.coursework_tags?.length
+    ? edu.coursework_tags
+    : (edu.coursework || []).map(name => ({ name, tags: [] })));
+  lines.push(...taggedRowsToText("Coursework", cw));
+  lines.push(...taggedRowsToText("Awards", getTaggedRowsFromData(data, "award_tags", "awards")));
+  lines.push(...taggedRowsToText("Languages", getTaggedRowsFromData(data, "language_tags", "languages")));
+  lines.push(...taggedRowsToText("Tools", getTaggedRowsFromData(data, "tool_tags", "tools")));
+
+  for (const section of ENTRY_SECTIONS) {
+    lines.push(`## ${ENTRY_SECTION_TITLES[section]}`);
+    for (const entry of data[section] || []) {
+      lines.push(serializeEntryToText(entry));
+      lines.push("");
+    }
+  }
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+}
+
+function getTaggedRowsFromData(data, tagsKey, listKey) {
+  const tagged = data[tagsKey];
+  if (Array.isArray(tagged) && tagged.length) {
+    return tagged.map(item => ({ name: item.name || "", tags: item.tags || [] }));
+  }
+  return (data[listKey] || []).map(name => ({ name, tags: [] }));
+}
+
+function parseKvLine(line) {
+  const m = line.match(/^([a-z_]+):\s*(.*)$/i);
+  if (!m) return null;
+  return { key: m[1].toLowerCase(), value: m[2] };
+}
+
+function parseTaggedListSection(lines, startIdx) {
+  const rows = [];
+  let i = startIdx;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^##\s/.test(line) || /^#\s/.test(line)) break;
+    if (line.startsWith("- ")) {
+      const rest = line.slice(2);
+      const parts = rest.split("| tags:");
+      const name = parts[0].trim();
+      const tags = parts[1] ? parts[1].split(",").map(s => s.trim()).filter(Boolean) : [];
+      rows.push({ name, tags });
+    } else if (line.trim()) {
+      log("warn", `Ignored line in tagged list: ${line}`);
+    }
+    i++;
+  }
+  return { rows, next: i };
+}
+
+function parseEntryFromLines(lines, startIdx) {
+  const header = lines[startIdx].match(/^###\s+(.+?)(?:\s+\[id=([^\]]*)\])?\s*$/);
+  if (!header) return null;
+  const entry = {
+    id: (header[2] || "").trim() || `entry_${Date.now()}`,
+    name: header[1].trim(),
+    subtitle: "",
+    dates: "",
+    tags: [],
+    bullets: {},
+  };
+  let i = startIdx + 1;
+  let currentVariant = null;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^###\s/.test(line) || /^##\s/.test(line) || /^#\s/.test(line)) break;
+    const bulletsHdr = line.match(/^####\s+bullets:(\d+)\s*$/i);
+    if (bulletsHdr) {
+      currentVariant = bulletsHdr[1];
+      if (!entry.bullets[currentVariant]) entry.bullets[currentVariant] = [];
+      i++;
+      continue;
+    }
+    if (line.startsWith("- ") && currentVariant) {
+      entry.bullets[currentVariant].push(line.slice(2));
+      i++;
+      continue;
+    }
+    const kv = parseKvLine(line);
+    if (kv) {
+      if (kv.key === "subtitle") entry.subtitle = kv.value;
+      else if (kv.key === "dates") entry.dates = kv.value;
+      else if (kv.key === "tags") entry.tags = kv.value.split(",").map(s => s.trim()).filter(Boolean);
+      else log("warn", `Ignored entry field: ${kv.key}`);
+      i++;
+      continue;
+    }
+    if (line.trim()) log("warn", `Ignored entry line: ${line}`);
+    i++;
+  }
+  if (!Object.keys(entry.bullets).length) entry.bullets = { "1": [""] };
+  return { entry, next: i };
+}
+
+function parseCvFromText(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const data = {
+    name: "",
+    location: "",
+    email: "",
+    phone: "",
+    github: "",
+    linkedin: "",
+    education: { school: "", dates: "", degree: "", coursework: [], coursework_tags: [] },
+    awards: [],
+    award_tags: [],
+    languages: [],
+    language_tags: [],
+    tools: [],
+    tool_tags: [],
+    research: [],
+    experience: [],
+    projects: [],
+  };
+  let i = 0;
+  let section = null;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^#\s+/.test(line) && !/^##/.test(line)) {
+      data.name = line.replace(/^#\s+/, "").trim();
+      i++;
+      continue;
+    }
+    const h2 = line.match(/^##\s+(.+)\s*$/);
+    if (h2) {
+      section = h2[1].trim().toLowerCase();
+      i++;
+      if (section === "coursework") {
+        const parsed = parseTaggedListSection(lines, i);
+        data.education.coursework_tags = parsed.rows;
+        data.education.coursework = parsed.rows.map(r => r.name).filter(Boolean);
+        i = parsed.next;
+        section = null;
+      } else if (section === "awards") {
+        const parsed = parseTaggedListSection(lines, i);
+        data.award_tags = parsed.rows;
+        data.awards = parsed.rows.map(r => r.name).filter(Boolean);
+        i = parsed.next;
+        section = null;
+      } else if (section === "languages") {
+        const parsed = parseTaggedListSection(lines, i);
+        data.language_tags = parsed.rows;
+        data.languages = parsed.rows.map(r => r.name).filter(Boolean);
+        i = parsed.next;
+        section = null;
+      } else if (section === "tools") {
+        const parsed = parseTaggedListSection(lines, i);
+        data.tool_tags = parsed.rows;
+        data.tools = parsed.rows.map(r => r.name).filter(Boolean);
+        i = parsed.next;
+        section = null;
+      }
+      continue;
+    }
+    if (section === "contact") {
+      const kv = parseKvLine(line);
+      if (kv && ["location", "email", "phone", "github", "linkedin"].includes(kv.key)) {
+        data[kv.key] = kv.value;
+      } else if (line.trim()) log("warn", `Ignored contact line: ${line}`);
+      i++;
+      continue;
+    }
+    if (section === "education") {
+      const kv = parseKvLine(line);
+      if (kv && ["school", "dates", "degree"].includes(kv.key)) {
+        data.education[kv.key] = kv.value;
+      } else if (line.trim() && !/^###/.test(line)) log("warn", `Ignored education line: ${line}`);
+      if (!/^###/.test(line)) { i++; continue; }
+    }
+    if (ENTRY_SECTIONS.includes(section) && /^###\s/.test(line)) {
+      const parsed = parseEntryFromLines(lines, i);
+      if (parsed) {
+        data[section].push(parsed.entry);
+        i = parsed.next;
+        continue;
+      }
+    }
+    if (line.trim() && !/^####/.test(line)) log("warn", `Ignored line: ${line}`);
+    i++;
+  }
+  ensureCvShape(data);
+  return data;
+}
+
+function parseEntryText(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  let start = lines.findIndex(l => /^###\s/.test(l));
+  if (start < 0) {
+    // Treat whole paste as a single entry body with synthetic header
+    const wrapped = [`### Imported entry [id=entry_${Date.now()}]`, ...lines];
+    const parsed = parseEntryFromLines(wrapped, 0);
+    if (!parsed) throw new Error("Could not parse entry text");
+    return parsed.entry;
+  }
+  const parsed = parseEntryFromLines(lines, start);
+  if (!parsed) throw new Error("Could not parse entry text");
+  return parsed.entry;
+}
+
+async function exportCv(format) {
+  if (!cvDraft) return;
+  closeToolbarMenus();
+  const text = format === "json"
+    ? JSON.stringify(cvDraft, null, 2)
+    : serializeCvToText(cvDraft);
+  const ok = await copyText(text);
+  log(ok ? "success" : "warn", ok
+    ? `Copied full CV as ${format === "json" ? "JSON" : "text"}`
+    : "Copy failed — select and copy manually from the terminal");
+  if (!ok) log("info", text.slice(0, 500) + (text.length > 500 ? "…" : ""));
+}
+
+async function exportEntry(section, idx, format) {
+  const entry = cvDraft?.[section]?.[idx];
+  if (!entry) return;
+  const payload = format === "json"
+    ? JSON.stringify({ section, entry }, null, 2)
+    : serializeEntryToText(entry);
+  const ok = await copyText(payload);
+  log(ok ? "success" : "warn", ok
+    ? `Copied ${section} entry as ${format === "json" ? "JSON" : "text"}`
+    : "Copy failed");
+}
+
+function toggleToolbarMenu(id, ev) {
+  if (ev) ev.stopPropagation();
+  const el = document.getElementById(id);
+  const wasOpen = el?.classList.contains("open");
+  closeToolbarMenus();
+  if (el && !wasOpen) el.classList.add("open");
+}
+
+function closeToolbarMenus() {
+  document.querySelectorAll(".cv-dropdown.open").forEach(el => el.classList.remove("open"));
+}
+
+function showImportModal(scope, section, idx) {
+  closeToolbarMenus();
+  importModal = { scope, section: section || null, idx: idx == null ? null : idx, format: "text" };
+  renderImportModal();
+}
+
+function setImportFormat(format) {
+  if (!importModal) return;
+  importModal.format = format;
+  renderImportModal();
+}
+
+function closeImportModal() {
+  importModal = null;
+  document.getElementById("modal-root").innerHTML = "";
+}
+
+function renderImportModal() {
+  if (!importModal) return;
+  const title = importModal.scope === "cv" ? "Import CV" : "Import entry";
+  const hint = importModal.scope === "cv"
+    ? "Paste text or JSON exported from this editor. This replaces the current draft (not saved until you click Save)."
+    : "Paste an entry export. Replaces this entry in the draft (matched by id when present).";
+  const root = document.getElementById("modal-root");
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeImportModal()">
+      <div class="modal wide" role="dialog" aria-labelledby="import-title">
+        <h2 id="import-title">${escapeHtml(title)}</h2>
+        <p>${escapeHtml(hint)}</p>
+        <div class="modal-tabs">
+          <button type="button" class="${importModal.format === "text" ? "active" : ""}" onclick="setImportFormat('text')">Text</button>
+          <button type="button" class="${importModal.format === "json" ? "active" : ""}" onclick="setImportFormat('json')">JSON</button>
+        </div>
+        <div class="modal-error" id="import-error"></div>
+        <textarea class="import-area" id="import-text" placeholder="${importModal.format === "json" ? "{ ... }" : "# Name\\n## Contact\\n..."}"></textarea>
+        <div class="modal-actions">
+          <button class="btn btn-dim" onclick="closeImportModal()">Cancel</button>
+          <button class="btn btn-run" onclick="applyImport()">Import</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById("import-text")?.focus();
+}
+
+function applyImport() {
+  const errEl = document.getElementById("import-error");
+  const raw = document.getElementById("import-text")?.value || "";
+  if (!importModal || !raw.trim()) {
+    if (errEl) errEl.textContent = "Paste something to import.";
+    return;
+  }
+  try {
+    if (importModal.scope === "cv") {
+      if (!window.confirm("Replace the entire CV draft with this import?")) return;
+      let next;
+      if (importModal.format === "json") {
+        const parsed = JSON.parse(raw);
+        next = parsed.data && typeof parsed.data === "object" ? parsed.data : parsed;
+        if (!next || typeof next !== "object" || Array.isArray(next)) {
+          throw new Error("JSON must be a CV object");
+        }
+      } else {
+        next = parseCvFromText(raw);
+      }
+      ensureCvShape(next);
+      cvDraft = next;
+      log("success", "Imported CV into draft — click Save to persist");
+    } else {
+      const section = importModal.section;
+      const idx = importModal.idx;
+      if (!cvDraft?.[section] || idx == null) throw new Error("Missing entry target");
+      let entry;
+      if (importModal.format === "json") {
+        const parsed = JSON.parse(raw);
+        entry = parsed.entry && typeof parsed.entry === "object" ? parsed.entry : parsed;
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+          throw new Error("JSON must be an entry object or { section, entry }");
+        }
+      } else {
+        entry = parseEntryText(raw);
+      }
+      const list = cvDraft[section];
+      const byId = entry.id ? list.findIndex(e => e.id === entry.id) : -1;
+      if (byId >= 0) list[byId] = entry;
+      else list[idx] = entry;
+      log("success", `Imported ${section} entry into draft — click Save to persist`);
+    }
+    closeImportModal();
+    render();
+  } catch (e) {
+    if (errEl) errEl.textContent = e.message;
   }
 }
 
@@ -1040,6 +1699,10 @@ function renderEntrySection(title, section) {
     ${entries.map((entry, idx) => {
       ensureBulletVariants(entry);
       const keys = bulletVariantKeys(entry);
+      const entryId = entry.id || "";
+      const allComments = commentsForEntry(section, entryId);
+      const openCount = unresolvedCommentCount(allComments);
+      const showEntryThread = isCommentFocus(section, entryId, null, null);
       return `
       <div class="cv-entry">
         <div class="cv-entry-head">
@@ -1063,6 +1726,20 @@ function renderEntrySection(title, section) {
             <button class="cv-mini-btn danger" onclick="removeEntry('${section}',${idx})" title="Remove">✕</button>
           </div>
         </div>
+        <div class="cv-section-actions" style="margin-top:0;margin-bottom:8px">
+          <button class="cv-mini-btn" type="button" onclick="toggleCommentFocus('${section}','${attr(entryId)}',null,null)" ${entryId ? "" : "disabled title=\"Set an id to comment\""}>
+            Comments${allComments.length ? ` <span class="cv-comment-badge ${openCount ? "open" : ""}">${openCount || allComments.length}</span>` : ""}
+          </button>
+          <div class="cv-dropdown" id="entry-export-${section}-${idx}">
+            <button class="cv-mini-btn" type="button" onclick="toggleToolbarMenu('entry-export-${section}-${idx}', event)">Export ▾</button>
+            <div class="cv-dropdown-menu">
+              <button type="button" onclick="exportEntry('${section}',${idx},'text')">Copy as text</button>
+              <button type="button" onclick="exportEntry('${section}',${idx},'json')">Copy as JSON</button>
+            </div>
+          </div>
+          <button class="cv-mini-btn" type="button" onclick="showImportModal('entry','${section}',${idx})">Import</button>
+        </div>
+        ${showEntryThread && entryId ? renderCommentThread(section, entryId, null) : ""}
         <div class="cv-bullets">
           ${keys.map(count => {
             const list = entry.bullets[String(count)] || [];
@@ -1075,12 +1752,18 @@ function renderEntrySection(title, section) {
                     ${keys.length > 1 ? `<button class="cv-mini-btn danger" onclick="removeBulletVariant('${section}',${idx},${count})">Remove version</button>` : ""}
                   </span>
                 </div>
-                ${list.map((b, bIdx) => `
+                ${list.map((b, bIdx) => {
+                  const bCount = entryId ? bulletCommentCount(section, entryId, count, bIdx) : 0;
+                  const showBulletThread = entryId && isCommentFocus(section, entryId, count, bIdx);
+                  return `
                   <div class="cv-bullet-row">
                     <textarea class="cv-textarea cv-autosize" oninput="setBullet('${section}',${idx},${count},${bIdx},this.value);autosizeTextarea(this)">${escapeHtml(b)}</textarea>
+                    <button class="cv-mini-btn" type="button" title="Comment on bullet" onclick="toggleCommentFocus('${section}','${attr(entryId)}','${count}',${bIdx})" ${entryId ? "" : "disabled"}>Note${bCount ? ` ${bCount}` : ""}</button>
                     <button class="cv-mini-btn danger" onclick="removeBulletInVariant('${section}',${idx},${count},${bIdx})">✕</button>
                   </div>
-                `).join("")}
+                  ${showBulletThread ? renderCommentThread(section, entryId, { variant: String(count), index: bIdx }) : ""}
+                `;
+                }).join("")}
               </div>
             `;
           }).join("")}
@@ -1106,21 +1789,30 @@ function renderCvEditor() {
   ensureAwardTags();
   ensureTaggedList("language_tags", "languages");
   ensureTaggedList("tool_tags", "tools");
+  const unresolved = unresolvedCommentCount(cvComments);
   return `
     <div class="cv-editor">
       <div class="cv-toolbar">
-        <span class="label">Document editor — changes save to MongoDB</span>
-        <div class="btns" style="display:flex;gap:6px">
+        <span class="label">Document editor — changes save to MongoDB${unresolved ? ` · ${unresolved} open comment${unresolved === 1 ? "" : "s"}` : ""}</span>
+        <div class="cv-toolbar-menus">
+          <div class="cv-dropdown" id="cv-export-menu">
+            <button class="btn btn-dim" type="button" onclick="toggleToolbarMenu('cv-export-menu', event)">Export ▾</button>
+            <div class="cv-dropdown-menu">
+              <button type="button" onclick="exportCv('text')">Copy as text</button>
+              <button type="button" onclick="exportCv('json')">Copy as JSON</button>
+            </div>
+          </div>
+          <button class="btn btn-dim" type="button" onclick="showImportModal('cv')">Import</button>
           <button class="btn btn-dim" onclick="closeCvEditor(true)">Cancel</button>
           <button class="btn btn-dl" onclick="reloadCvPdf()">↻ Reload CV</button>
           <button class="btn btn-run" onclick="saveCvDraft()" ${cvSaving ? "disabled" : ""}>${cvSaving ? "Saving…" : "Save"}</button>
         </div>
       </div>
-      <div class="cv-scroll">
+      <div class="cv-scroll" onclick="closeToolbarMenus()">
         <div class="cv-paper">
           <input class="cv-input" style="font-family:'Source Serif 4',Georgia,serif;font-size:28px;font-weight:700;padding-left:0"
             value="${attr(cvDraft.name || "")}" oninput="setHeaderField('name',this.value)" placeholder="Full name" />
-          <div class="muted" style="margin-bottom:18px">Edit fields below. Use **bold** and \`code\` markup in bullets as before.</div>
+          <div class="muted" style="margin-bottom:18px">Edit fields below. Use **bold** and \`code\` markup in bullets as before. Comments are editor-only and save immediately.</div>
 
           <h2>Contact</h2>
           <div class="cv-field-row"><label>Location</label><input class="cv-input" value="${attr(cvDraft.location || "")}" oninput="setHeaderField('location',this.value)" /></div>
@@ -1189,10 +1881,17 @@ async function render() {
   ta.innerHTML = actions;
 
   const content = document.getElementById("content");
+  const savedCvScroll = activeFile === "__cv_edit__"
+    ? document.querySelector(".cv-scroll")?.scrollTop ?? null
+    : null;
 
   if (activeFile === "__cv_edit__") {
     content.innerHTML = renderCvEditor();
-    requestAnimationFrame(() => autosizeAllTextareas(content));
+    requestAnimationFrame(() => {
+      autosizeAllTextareas(content);
+      const sc = content.querySelector(".cv-scroll");
+      if (sc && savedCvScroll != null) sc.scrollTop = savedCvScroll;
+    });
   } else if (activeFile === "__gen__" && generatedBlobUrl) {
     const layoutButtons = layoutCandidates.length
       ? `<div class="btns" style="flex-wrap:wrap;justify-content:flex-start">
@@ -1287,6 +1986,7 @@ async function render() {
     content.innerHTML = `<div class="empty-state">Open a file from the sidebar</div>`;
   }
 
+  if (importModal) renderImportModal();
   renderTerminal();
 }
 

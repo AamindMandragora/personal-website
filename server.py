@@ -6,13 +6,17 @@ Endpoints:
   GET  /api/cv.pdf          → returns the pre-compiled full CV PDF
   GET  /api/data            → public CV JSON (from MongoDB)
   PUT  /api/cv              → replace CV document (auth required); regen PDF
+  GET  /api/comments        → list editor comments (auth)
+  POST /api/comments        → create editor comment (auth)
+  PATCH /api/comments/<id>  → update comment body/resolved (auth)
+  DELETE /api/comments/<id> → delete comment (auth)
   POST /api/auth/login      → set session cookie from shared password
   POST /api/auth/logout     → clear session cookie
   GET  /api/auth/me         → { authenticated: bool }
   POST /api/compile         → accepts JSON config body, returns a filtered resume PDF
   POST /api/compile-raw     → accepts raw .cfg text body, returns a filtered resume PDF
 """
-import os, json, copy, re, datetime, base64, time, functools
+import os, json, copy, re, datetime, base64, time, functools, secrets
 from io import BytesIO
 
 import certifi
@@ -66,15 +70,17 @@ _MONGO_TRANSIENT = (AutoReconnect, ConnectionFailure, ServerSelectionTimeoutErro
 
 _mongo_client = None
 _cv_cache = {"data": None, "updated": None}
+_comments_cache = {"comments": None}
 _pdf_cache = {"bytes": None, "updated": None}
 _runtime_ready = False
+COMMENT_SECTIONS = frozenset({"research", "experience", "projects"})
 
 
 # ─── CORS (no flask-cors needed) ───
 def add_cors(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,OPTIONS"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
     return response
 
 
@@ -138,9 +144,10 @@ def seed_mongo_if_empty():
             return False
         data = load_cv_data_from_disk()
         now = time.time()
-        col.insert_one({"slug": CV_SLUG, "data": data, "updated": now})
+        col.insert_one({"slug": CV_SLUG, "data": data, "comments": [], "updated": now})
         _cv_cache["data"] = data
         _cv_cache["updated"] = now
+        _comments_cache["comments"] = []
         print("[startup] Seeded MongoDB cv.cv_data from cv_data.json")
         return True
 
@@ -150,6 +157,7 @@ def seed_mongo_if_empty():
 def invalidate_cv_cache():
     _cv_cache["data"] = None
     _cv_cache["updated"] = None
+    _comments_cache["comments"] = None
 
 
 def get_cv_data():
@@ -176,16 +184,92 @@ def get_cv_data():
     return copy.deepcopy(data)
 
 
+def get_comments():
+    """Return editor comments from Mongo (cached). Not part of public CV JSON."""
+    if _comments_cache["comments"] is not None:
+        return copy.deepcopy(_comments_cache["comments"])
+    try:
+        def _read(col):
+            return col.find_one(
+                {"slug": CV_SLUG},
+                projection={"_id": 0, "comments": 1},
+            )
+
+        doc = with_mongo_retry(_read)
+        comments = list(doc.get("comments") or []) if doc else []
+        _comments_cache["comments"] = comments
+        return copy.deepcopy(comments)
+    except Exception as exc:
+        print(f"[comments] Mongo read failed: {exc}")
+        _comments_cache["comments"] = []
+        return []
+
+
+def save_comments(comments):
+    """Persist comments list without touching CV data."""
+    if not isinstance(comments, list):
+        raise ValueError("comments must be a list")
+    now = time.time()
+
+    def _write(col):
+        col.update_one(
+            {"slug": CV_SLUG},
+            {
+                "$set": {"comments": comments, "updated": now},
+                "$setOnInsert": {"slug": CV_SLUG, "data": {}},
+            },
+            upsert=True,
+        )
+
+    with_mongo_retry(_write)
+    _comments_cache["comments"] = copy.deepcopy(comments)
+    _cv_cache["updated"] = now
+    return now
+
+
+def new_comment_id():
+    return f"c_{int(time.time() * 1000)}_{secrets.token_hex(4)}"
+
+
+def normalize_comment_bullet(bullet):
+    """Validate optional bullet anchor; return None or {variant, index, quote}."""
+    if bullet is None:
+        return None
+    if not isinstance(bullet, dict):
+        raise ValueError("bullet must be an object or null")
+    variant = str(bullet.get("variant", "")).strip()
+    if not variant:
+        raise ValueError("bullet.variant is required")
+    try:
+        index = int(bullet.get("index"))
+    except (TypeError, ValueError):
+        raise ValueError("bullet.index must be an integer") from None
+    if index < 0:
+        raise ValueError("bullet.index must be >= 0")
+    quote = bullet.get("quote", "")
+    if quote is None:
+        quote = ""
+    if not isinstance(quote, str):
+        raise ValueError("bullet.quote must be a string")
+    return {"variant": variant, "index": index, "quote": quote}
+
+
 def save_cv_data(data):
-    """Persist CV JSON to Mongo (and local disk mirror) and refresh the cache."""
+    """Persist CV JSON to Mongo (and local disk mirror) and refresh the cache.
+
+    Uses $set on data/updated so sibling editor comments are preserved.
+    """
     if not isinstance(data, dict):
         raise ValueError("CV data must be a JSON object")
     now = time.time()
 
     def _write(col):
-        col.replace_one(
+        col.update_one(
             {"slug": CV_SLUG},
-            {"slug": CV_SLUG, "data": data, "updated": now},
+            {
+                "$set": {"data": data, "updated": now},
+                "$setOnInsert": {"slug": CV_SLUG, "comments": []},
+            },
             upsert=True,
         )
 
@@ -1845,6 +1929,96 @@ def put_cv():
                 "updated": updated,
             }), 500
         return jsonify({"ok": True, "updated": updated, "source": "mongodb"})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/comments", methods=["GET", "POST", "OPTIONS"])
+def comments_collection():
+    if request.method == "OPTIONS":
+        return "", 204
+    if not is_authenticated():
+        return jsonify({"error": "Authentication required"}), 401
+
+    if request.method == "GET":
+        try:
+            return jsonify({"comments": get_comments()})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    payload = request.get_json(force=True, silent=True) or {}
+    section = (payload.get("section") or "").strip()
+    entry_id = (payload.get("entryId") or "").strip()
+    body = payload.get("body", "")
+    author = (payload.get("author") or "").strip() or "Editor"
+    if section not in COMMENT_SECTIONS:
+        return jsonify({"error": "section must be research, experience, or projects"}), 400
+    if not entry_id:
+        return jsonify({"error": "entryId is required"}), 400
+    if not isinstance(body, str) or not body.strip():
+        return jsonify({"error": "body is required"}), 400
+    try:
+        bullet = normalize_comment_bullet(payload.get("bullet"))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    comment = {
+        "id": new_comment_id(),
+        "section": section,
+        "entryId": entry_id,
+        "bullet": bullet,
+        "body": body.strip(),
+        "author": author[:80],
+        "created": time.time(),
+        "resolved": False,
+    }
+    try:
+        comments = get_comments()
+        comments.append(comment)
+        updated = save_comments(comments)
+        return jsonify({"ok": True, "comment": comment, "updated": updated}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/comments/<comment_id>", methods=["PATCH", "DELETE", "OPTIONS"])
+def comments_item(comment_id):
+    if request.method == "OPTIONS":
+        return "", 204
+    if not is_authenticated():
+        return jsonify({"error": "Authentication required"}), 401
+
+    comments = get_comments()
+    idx = next((i for i, c in enumerate(comments) if c.get("id") == comment_id), None)
+    if idx is None:
+        return jsonify({"error": "Comment not found"}), 404
+
+    if request.method == "DELETE":
+        try:
+            comments.pop(idx)
+            updated = save_comments(comments)
+            return jsonify({"ok": True, "updated": updated})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    payload = request.get_json(force=True, silent=True) or {}
+    comment = comments[idx]
+    if "body" in payload:
+        body = payload.get("body")
+        if not isinstance(body, str) or not body.strip():
+            return jsonify({"error": "body must be a non-empty string"}), 400
+        comment["body"] = body.strip()
+    if "resolved" in payload:
+        comment["resolved"] = bool(payload.get("resolved"))
+    if "author" in payload:
+        author = payload.get("author")
+        if not isinstance(author, str) or not author.strip():
+            return jsonify({"error": "author must be a non-empty string"}), 400
+        comment["author"] = author.strip()[:80]
+    comments[idx] = comment
+    try:
+        updated = save_comments(comments)
+        return jsonify({"ok": True, "comment": comment, "updated": updated})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

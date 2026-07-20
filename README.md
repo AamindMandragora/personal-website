@@ -14,6 +14,8 @@ The app is a VS Code-style frontend backed by a small Flask server that renders 
 
 - Full CV generation directly from `cv_data.json`
 - Tailored resume generation from editable `.cfg` files
+- Editor-only comments on research / experience / projects (and individual bullets) for collaborators with the shared password
+- Copy/paste export and import of the full CV or a single entry as human-readable text or lossless JSON
 - Project filtering by `industry=[...]` (also filters research, experience, coursework, awards, languages, and tools)
 - Explicit project selection with `projects=[...]`
 - Ordered selectors: if `projects` comes before `industry`, those projects are prioritized first; if `industry` comes first, industry-matched projects fill first
@@ -38,6 +40,7 @@ Then open `http://localhost:5000`. Click **Edit CV** and enter `EDIT_PASSWORD` t
 4. Open the app in your browser.
 5. View `cv.pdf` for your full CV.
 6. Open or create a `.cfg` file and press `Run` to generate a tailored PDF.
+7. In **Edit CV**, use **Export** / **Import** to share draft text with a friend, or leave **Comments** / **Note** threads on entries and bullets (saved separately from CV Save).
 
 ## Config Syntax
 
@@ -140,6 +143,10 @@ Also in MongoDB Atlas → Network Access, allow `0.0.0.0/0` (or Vercel’s egres
 | `/api/cv.pdf` | GET | Returns the full CV PDF |
 | `/api/data` | GET | Publishes CV JSON from MongoDB |
 | `/api/cv` | PUT | Replace CV document (session auth); regenerates PDF |
+| `/api/comments` | GET | List editor comments (session auth; not public) |
+| `/api/comments` | POST | Create entry/bullet comment (session auth) |
+| `/api/comments/<id>` | PATCH | Update comment body / resolved (session auth) |
+| `/api/comments/<id>` | DELETE | Delete comment (session auth) |
 | `/api/auth/login` | POST | `{ password }` → sets HttpOnly session cookie |
 | `/api/auth/logout` | POST | Clears session |
 | `/api/auth/me` | GET | `{ authenticated: bool }` |
@@ -151,6 +158,8 @@ Also in MongoDB Atlas → Network Access, allow `0.0.0.0/0` (or Vercel’s egres
 
 - `cv.pdf` is regenerated on startup when stale, and after authenticated CV saves.
 - Resume `.cfg` presets are stored in browser `localStorage`, not on the server.
+- Editor comments live as a sibling `comments` field on the Mongo CV document (not inside public `data` / JSON-LD / PDFs).
+- Text/JSON export-import runs entirely in the browser against the CV draft; import does not touch comments.
 - The full CV can span multiple pages.
 - Generated resumes still try to stay compact and include as many selected projects as fit.
 - If you want nicer typography, drop `Charter-Regular.ttf`, `Charter-Bold.ttf`, and `Charter-Italic.ttf` into `fonts/`.

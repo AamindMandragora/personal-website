@@ -329,6 +329,67 @@ def normalize_text(text):
     )
 
 
+def _clean_bullet_list(bullets):
+    return [b for b in (bullets or []) if normalize_text(b).strip()]
+
+
+def _bullet_variants(item):
+    """
+    Return {count: [bullet, ...]} for an entry.
+
+    Preferred shape in cv_data.json:
+      "bullets": {"1": ["..."], "2": ["...", "..."], ...}
+
+    Legacy shape (flat list) is treated as prefixes of that list.
+    """
+    raw = item.get("bullets") if isinstance(item, dict) else None
+    if isinstance(raw, dict):
+        out = {}
+        for key, value in raw.items():
+            try:
+                count = int(key)
+            except (TypeError, ValueError):
+                continue
+            if count < 1 or not isinstance(value, list):
+                continue
+            cleaned = _clean_bullet_list(value)
+            if cleaned:
+                out[count] = cleaned
+        return out
+    if isinstance(raw, list):
+        cleaned = _clean_bullet_list(raw)
+        return {i: cleaned[:i] for i in range(1, len(cleaned) + 1)}
+    return {}
+
+
+def _store_bullet_variants(variants):
+    return {str(k): list(v) for k, v in sorted(variants.items())}
+
+
+def _available_bullet_counts(item, max_bullets=None, min_bullets=None):
+    keys = sorted(_bullet_variants(item))
+    if max_bullets is not None:
+        keys = [k for k in keys if k <= max_bullets]
+    if min_bullets is not None:
+        keys = [k for k in keys if k >= min_bullets]
+    return keys
+
+
+def _resolve_bullets(item, count=None):
+    """Pick the bullet list for a target count (exact variant, else nearest <=)."""
+    variants = _bullet_variants(item)
+    if not variants:
+        return []
+    if count is None:
+        return list(variants[max(variants)])
+    if count in variants:
+        return list(variants[count])
+    lower = [k for k in variants if k <= count]
+    if lower:
+        return list(variants[max(lower)])
+    return list(variants[min(variants)])
+
+
 def _config_year_from_value(value, fallback):
     if value is None:
         return fallback
@@ -697,18 +758,25 @@ def filter_cv(config, *, force_include_all_projects=False):
     if min_b is not None and max_b is not None and min_b > max_b:
         min_b, max_b = max_b, min_b
 
-    # Cap bullets for research/experience directly by max_b if provided.
+    # Cap available bullet variants for research/experience by max_b if provided.
     if max_b is not None:
         for section in ("research", "experience"):
-            data[section] = [{**it, "bullets": it["bullets"][:max_b]} for it in data[section]]
+            capped = []
+            for it in data[section]:
+                variants = {
+                    k: v for k, v in _bullet_variants(it).items() if k <= max_b
+                }
+                if variants:
+                    capped.append({**it, "bullets": _store_bullet_variants(variants)})
+            data[section] = capped
 
     # Drop empty items so we never render whitespace-only content blocks.
     for section in ("research", "experience", "projects"):
         cleaned = []
         for it in data[section]:
-            bullets = [b for b in it.get("bullets", []) if normalize_text(b).strip()]
-            if bullets:
-                cleaned.append({**it, "bullets": bullets})
+            variants = _bullet_variants(it)
+            if variants:
+                cleaned.append({**it, "bullets": _store_bullet_variants(variants)})
         data[section] = cleaned
 
     # Avoid sparse/empty resumes unless explicitly allowed.
@@ -716,7 +784,14 @@ def filter_cv(config, *, force_include_all_projects=False):
     if not allow_empty and not data["projects"]:
         data["projects"] = copy.deepcopy(source_cv.get("projects", []))[:3]
         if max_b is not None:
-            data["projects"] = [{**it, "bullets": it["bullets"][:max_b]} for it in data["projects"]]
+            capped = []
+            for it in data["projects"]:
+                variants = {
+                    k: v for k, v in _bullet_variants(it).items() if k <= max_b
+                }
+                if variants:
+                    capped.append({**it, "bullets": _store_bullet_variants(variants)})
+            data["projects"] = capped
 
     data["_bullet_bounds"] = {"min": min_b, "max": max_b}
     return data
@@ -932,7 +1007,10 @@ def _estimate_bullet_line_count(c, bullet, content_w):
 def _entry_content_height(c, item, content_w):
     """Ink height for an entry; trailing gap is excluded from keep-together checks."""
     total = sv(16)
-    for bullet in item.get("bullets", []):
+    bullets = item.get("bullets", [])
+    if isinstance(bullets, dict):
+        bullets = _resolve_bullets(item, None)
+    for bullet in bullets:
         total += sv(15) * _estimate_bullet_line_count(c, bullet, content_w)
     return total
 
@@ -942,9 +1020,7 @@ def _estimate_entry_height(c, item, content_w):
 
 
 def _item_with_bullets(item, bullet_count):
-    if bullet_count is None:
-        return item
-    return {**item, "bullets": item.get("bullets", [])[:bullet_count]}
+    return {**item, "bullets": _resolve_bullets(item, bullet_count)}
 
 
 def _estimate_section_header_height():
@@ -979,10 +1055,24 @@ def _layout_bottom_y(c, items, bullet_counts, start_y, content_w, keep_entry_tog
 
 
 def _per_item_bullet_cap(item, max_bullets):
-    available = len(item.get("bullets", []))
-    if max_bullets is None:
-        return available
-    return min(available, max_bullets)
+    keys = _available_bullet_counts(item, max_bullets=max_bullets)
+    return keys[-1] if keys else 0
+
+
+def _next_lower_bullet_count(item, current, min_bullets, max_bullets):
+    keys = [
+        k
+        for k in _available_bullet_counts(item, max_bullets=max_bullets, min_bullets=min_bullets)
+        if k < current
+    ]
+    return keys[-1] if keys else None
+
+
+def _next_higher_bullet_count(item, current, max_bullets):
+    keys = [
+        k for k in _available_bullet_counts(item, max_bullets=max_bullets) if k > current
+    ]
+    return keys[0] if keys else None
 
 
 def _simulate_tailored_bottom(c, plan, start_y, content_w):
@@ -1017,15 +1107,30 @@ def _pack_bullet_counts(c, items, start_y, min_bullets, max_bullets, content_w, 
     for item_count in range(len(items), 0, -1):
         subset = items[:item_count]
         caps = [_per_item_bullet_cap(it, max_bullets) for it in subset]
-        counts = caps[:]
-
-        # Trim from the end so earlier entries keep more bullets.
-        while not fits(subset, counts) and any(count > lo for count in counts):
-            for idx in range(item_count - 1, -1, -1):
-                if counts[idx] > lo:
-                    counts[idx] -= 1
+        if any(cap < lo for cap in caps):
+            # Entry lacks a variant at/above min_bullets; fall back to its largest available.
+            counts = []
+            for it, cap in zip(subset, caps):
+                available = _available_bullet_counts(it, max_bullets=max_bullets)
+                if not available:
+                    counts = None
                     break
-            else:
+                counts.append(max(available))
+            if counts is None:
+                continue
+        else:
+            counts = caps[:]
+
+        # Trim from the end so earlier entries keep denser variants.
+        while not fits(subset, counts):
+            trimmed = False
+            for idx in range(item_count - 1, -1, -1):
+                nxt = _next_lower_bullet_count(subset[idx], counts[idx], lo, max_bullets)
+                if nxt is not None:
+                    counts[idx] = nxt
+                    trimmed = True
+                    break
+            if not trimmed:
                 break
 
         if not fits(subset, counts):
@@ -1036,9 +1141,10 @@ def _pack_bullet_counts(c, items, start_y, min_bullets, max_bullets, content_w, 
         while changed:
             changed = False
             for idx in range(item_count):
-                if counts[idx] < caps[idx]:
+                nxt = _next_higher_bullet_count(subset[idx], counts[idx], max_bullets)
+                if nxt is not None and nxt <= caps[idx]:
                     trial = counts[:]
-                    trial[idx] += 1
+                    trial[idx] = nxt
                     if fits(subset, trial):
                         counts = trial
                         changed = True
@@ -1047,11 +1153,15 @@ def _pack_bullet_counts(c, items, start_y, min_bullets, max_bullets, content_w, 
         return list(zip(subset, counts))
 
     first = items[0]
-    cap = _per_item_bullet_cap(first, max_bullets)
-    for count in range(cap, lo - 1, -1):
+    available = _available_bullet_counts(first, max_bullets=max_bullets)
+    if not available:
+        return [(first, lo)]
+    for count in reversed(available):
+        if count < lo and count != available[0]:
+            continue
         if _layout_content_bottom_y(c, [first], [count], start_y, content_w, floor_y) >= floor_y:
             return [(first, count)]
-    return [(first, lo)]
+    return [(first, available[0])]
 
 
 def _plan_one_page_layout(c, items, start_y, min_bullets, max_bullets, content_w, floor_y=BOTTOM):

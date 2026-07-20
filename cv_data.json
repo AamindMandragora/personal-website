@@ -6,9 +6,6 @@
   "github": "https://github.com/AamindMandragora/",
   "linkedin": "https://www.linkedin.com/in/advayth-pashupati/",
   "education": {
-    "school": "University of Illinois at Urbana-Champaign",
-    "dates": "Aug 2025 -- May 2028",
-    "degree": "B.S. in Mathematics and Computer Science (Technical GPA: 4.0, Overall GPA: 3.99); Honors: James Scholar, Dean's List x2",
     "coursework": [
       "Abstract Algebra",
       "Number Theory",
@@ -107,11 +104,14 @@
           "fullstack"
         ]
       }
-    ]
+    ],
+    "dates": "Aug 2025 -- May 2028",
+    "degree": "B.S. in Mathematics and Computer Science (Technical GPA: 4.0, Overall GPA: 3.99); Honors: James Scholar, Dean's List x2",
+    "school": "University of Illinois at Urbana-Champaign"
   },
   "awards": [
     "YC Startup School 2026",
-    "American Invitational Mathematics Exam Qualifier",
+    "AIME Qualifier",
     "USACO Silver Division",
     "Quiz Bowl Nationals"
   ],
@@ -124,14 +124,7 @@
       ]
     },
     {
-      "name": "Keywords AI Hackathon 2025 Winner",
-      "tags": [
-        "ai_ml",
-        "fullstack"
-      ]
-    },
-    {
-      "name": "American Invitational Mathematics Exam (AIME) Qualifier",
+      "name": "AIME Qualifier",
       "tags": [
         "math"
       ]
@@ -151,6 +144,7 @@
       ]
     }
   ],
+  "languages": [],
   "language_tags": [
     {
       "name": "Lean4",
@@ -229,7 +223,8 @@
     }
   ],
   "tools": [
-    "Linux",
+    "Arch Linux",
+    "Neovim",
     "Tensorflow",
     "NumPy",
     "MongoDB",
@@ -239,7 +234,13 @@
   ],
   "tool_tags": [
     {
-      "name": "Linux",
+      "name": "Arch Linux",
+      "tags": [
+        "systems"
+      ]
+    },
+    {
+      "name": "Neovim",
       "tags": [
         "systems"
       ]
@@ -285,154 +286,293 @@
   ],
   "research": [
     {
+      "bullets": {
+        "1": [
+          "Building **MetaDecode**, a verified program-synthesis system that auto-generates constrained LLM decoding strategies: **2,700+** lines of **Dafny**, **60+** formally contracted helpers, and up to **30%** gains over expert baselines (**GCD**, **CRANE**, **IterGen**, **CARS**) across **GSM-Symbolic**, **Spider**, and **SMILES**; paper submitted to **AAAI 2027**."
+        ],
+        "2": [
+          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose contracts gate every LLM-synthesized strategy before **Python** transpilation.",
+          "Drove synthesis via a **Thompson-sampling** bandit over a program tree and architected apples-to-apples evaluation against **GCD**, **CRANE**, **IterGen**, and **CARS**, achieving up to **30%** improvement across **GSM-Symbolic**, **Spider**, and **SMILES**; paper submitted to **AAAI 2027**."
+        ],
+        "3": [
+          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose formal pre/postcondition contracts gate every LLM-synthesized strategy before **Python** transpilation.",
+          "Guided synthesis search with a **Thompson-sampling** bandit over a tree of candidate programs, accepting only strategies that both verify in **Dafny** and improve the empirical task objective under hard correctness constraints.",
+          "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified splits and syntax-annotated scoring, achieving up to **30%** gains across **GSM-Symbolic**, **Spider**, and **SMILES** (**100+** configs, **Qwen3.5** ablations); paper submitted to **AAAI 2027**."
+        ],
+        "4": [
+          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose formal pre/postcondition contracts gate every LLM-synthesized strategy before **Python** transpilation.",
+          "Guided synthesis search with a **Thompson-sampling** bandit over a tree of candidate programs, accepting only strategies that both verify in **Dafny** and improve the empirical task objective under hard correctness constraints.",
+          "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified evaluation splits and syntax-annotated scoring that separate structural validity from semantic correctness.",
+          "Evaluated across **GSM-Symbolic**, **Spider**, and **SMILES** with **100+** ablation configurations and **Qwen3.5** evaluators, achieving up to **30%** improvement over expert-designed baselines; paper submitted to **AAAI 2027**."
+        ]
+      },
+      "dates": "Sept 2025 -- Present",
       "id": "focal",
       "name": "FOCAL Lab",
       "subtitle": "Formal Verification \\& Verified LLM Decoding Research",
-      "dates": "Sept 2025 -- Present",
       "tags": [
         "formal_methods",
         "ai_ml"
-      ],
-      "bullets": [
-        "Building **MetaDecode**, a verified constrained-decoding synthesis pipeline comprising **2,700+** lines of **Dafny** with **60+** cost-bounded CSD helpers whose pre/postcondition contracts gate every LLM-synthesized strategy before **Python** transpilation.",
-        "Architected unified baseline adapters, stratified evaluation splits, and syntax-annotated scoring, benchmarking **100+** configurations against expert baselines to calibrate **MetaDecode** acceptance and early-stopping criteria.",
-        "Implemented generation, verification, compilation, and evaluation of CSDs across **GSM-Symbolic**, **Spider**, and **SMILES** benchmarks, running ablation studies over **Qwen3.5** evaluators (**2B/4B/9B**) with held-out comparisons against CRANE, IterGen, and CARS."
       ]
     }
   ],
   "experience": [
     {
+      "bullets": {
+        "1": [
+          "Leading weekly **C**/Linux labs for **30+** students on processes, threads, synchronization, and memory management; co-authoring exams and the course book; debugging student allocators, schedulers, TCP servers, and filesystems one-on-one."
+        ],
+        "2": [
+          "Leading weekly lab sessions for **30+** students covering processes, threads, synchronization, and memory management in **C** on Linux, among UIUC's most demanding undergraduate systems courses.",
+          "Co-developing midterm and final exams and editing the course reference book, while guiding one-on-one debugging of memory allocators, process schedulers, TCP servers, and filesystems."
+        ],
+        "3": [
+          "Leading weekly lab sessions for **30+** students covering processes, threads, synchronization, and memory management in **C** on Linux, among UIUC's most demanding undergraduate systems courses.",
+          "Co-developing the midterm and final exams and editing the course reference book, taking on curriculum design responsibility beyond grading and facilitation.",
+          "Guiding students one-on-one through debugging **C** implementations of memory allocators, process schedulers, TCP servers, and filesystems."
+        ]
+      },
+      "dates": "Jul 2026 -- Present",
       "id": "cs341",
       "name": "University of Illinois at Urbana-Champaign",
       "subtitle": "Systems Programming Course Assistant",
-      "dates": "Jul 2026 -- Present",
       "tags": [
         "systems",
         "pedagogy"
-      ],
-      "bullets": [
-        "Leading weekly lab sessions for **30+ students** covering **processes, threads, synchronization, and memory management** in **C** on Linux.",
-        "Co-developing the **midterm and final exams** and editing the course reference book, aligning assessment content with systems programming learning objectives.",
-        "Guiding students one-on-one through debugging **C** implementations of **memory allocators, schedulers, TCP servers, and filesystems** during office hours."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Shipped a **Streamlit** management layer over **300+** GenAI API configs, migrated **300+** prompt templates into **PostgreSQL**, and designed a modular pipeline config system that cut reconfiguration from hours to minutes."
+        ],
+        "2": [
+          "Built a **Streamlit** management interface for **300+** JSON configs driving AbbVie's internal Generative AI API (prompt templates, model parameters, and routing rules), and migrated **300+** prompt templates into **PostgreSQL** for queryable versioning.",
+          "Designed a modular configuration system that decoupled pipeline behavior from code, enabling teams to swap models, adjust prompts, and change routing without redeploying, cutting reconfiguration from hours to minutes."
+        ],
+        "3": [
+          "Built a **Streamlit** management interface for **300+** JSON configuration files powering AbbVie's internal Generative AI API (prompt templates, model parameters, and routing rules).",
+          "Migrated **300+** prompt templates into **PostgreSQL**, replacing file-based storage with queryable, versionable configuration data for production GenAI workflows.",
+          "Designed a modular configuration system that decoupled pipeline behavior from code, enabling internal teams to reconfigure AI workflows without deploying new code and cutting reconfiguration time from hours to minutes."
+        ]
+      },
+      "dates": "June 2024 -- Aug 2024",
       "id": "abbvie",
       "name": "AbbVie",
       "subtitle": "Generative AI Platform \\& Workflow Automation Intern",
-      "dates": "June 2024 -- Aug 2024",
       "tags": [
         "fullstack",
         "ai_ml"
-      ],
-      "bullets": [
-        "Built a **Streamlit** interface for CRUD management of **300+** JSON configuration files powering an internal Generative AI API, and migrated **300+** prompt templates into **PostgreSQL**.",
-        "Designed a modular configuration system enabling dynamic pipeline updates without code changes, reducing reconfiguration time from **hours to minutes** for internal AI workflows."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Ran **2** weekly hours of undergraduate-level **Abstract Algebra** and **Number Theory** support for **40+** students, plus **4+** office hours/week spanning every math and CS course alongside AP Chemistry and French."
+        ],
+        "2": [
+          "Ran **2** weekly hours of advanced math support covering **Abstract Algebra** and **Number Theory**, guiding students through undergraduate-level proofs and grading weekly problem sets for **40+** students.",
+          "Held **4+** open office hours per week for **15+** regulars across every math and CS course offered, plus supplementary AP Chemistry and French tutoring across STEM and humanities."
+        ],
+        "3": [
+          "Ran **2** weekly hours of advanced math support covering **Abstract Algebra** and **Number Theory**, guiding students through undergraduate-level proofs most peers encounter only in junior year and grading weekly problem sets for **40+** students.",
+          "Held **4+** open office hours per week for **15+** regulars, covering every math and CS course offered (Advanced Programming, OOP, and the full math sequence) and adapting explanations to each learner's background.",
+          "Tutored supplementary subjects including AP Chemistry and French, operating as a structured academic support role with grading responsibility across IMSA's STEM and humanities curriculum."
+        ]
+      },
+      "dates": "Aug 2023 -- May 2025",
       "id": "imsa_tutoring",
       "name": "Illinois Math and Science Academy",
       "subtitle": "Peer Tutor \\& Special Math Support",
-      "dates": "Aug 2023 -- May 2025",
       "tags": [
         "pedagogy",
         "math"
-      ],
-      "bullets": [
-        "Ran **2 weekly hours** of advanced math support covering **Abstract Algebra** and **Number Theory**, guiding students through **undergraduate-level proofs** and grading weekly problem sets for **40+** students.",
-        "Held **4+ open office hours per week** for **15+ students**, covering every **math and CS course** offered (Advanced Programming, Object Oriented Programming, etc.) and adapting explanations to each learner's prerequisites.",
-        "Tutored supplementary subjects including **AP Chemistry** and **French**, broadening access to on-demand academic support across IMSA's STEM and humanities curriculum."
       ]
     },
     {
-      "id": "imsalympians",
-      "name": "IMSAlympians (IMSA Competitive Olympiad Club)",
-      "subtitle": "President \\& CS Coordinator",
+      "bullets": {
+        "1": [
+          "Led weekly **USACO** sessions for **20+** members on competitive algorithms, advancing **5+** members to **Silver** within a year, and grew club membership to **60+** through quarterly STEM outreach."
+        ],
+        "2": [
+          "Led weekly **USACO** study sessions for **20+** members, breaking competitive algorithms and data structures (binary search, monotonic stacks, BFS/DFS) into step-by-step implementation walkthroughs, advancing **5+** members to **Silver Division** within one year.",
+          "Grew general membership to **60+** through quarterly cross-club outreach events connecting advanced STEM topics to olympiad problem-solving, broadening the club beyond its core competitive audience."
+        ],
+        "3": [
+          "Led weekly **USACO** study sessions for **20+** members, breaking competitive algorithms and data structures (binary search, monotonic stacks, BFS/DFS) into step-by-step implementation walkthroughs.",
+          "Advanced **5+** members to the **Silver Division** within one year of consistent attendance, a meaningful jump given the difficulty of that progression.",
+          "Organized quarterly cross-club outreach events connecting advanced STEM topics to olympiad problem-solving, growing general membership to **60+**."
+        ]
+      },
       "dates": "Aug 2023 -- May 2025",
+      "id": "imsalympians",
+      "name": "IMSAlympians",
+      "subtitle": "President \\& CS Coordinator",
       "tags": [
         "pedagogy"
-      ],
-      "bullets": [
-        "Led weekly **USACO study sessions** for **20+ members**, breaking down **competitive algorithms and data structures** (binary search, monotonic stacks, BFS/DFS) into step-by-step implementation walkthroughs.",
-        "Aided **5+ members** in advancing to the **Silver Division** within one year of consistent attendance.",
-        "Organized quarterly **cross-club outreach events** connecting advanced STEM topics to olympiad problem-solving, growing **general membership to 60+**."
       ]
     }
   ],
   "projects": [
     {
+      "bullets": {
+        "1": [
+          "Built a custom **TLSF** allocator in **C** with **O(1)** worst-case malloc/free, **128-bit** free-list indexing, and compressed **32-bit** pointers: up to **100%** faster than glibc with **300%+** memory reduction, placing **3rd of ~300**."
+        ],
+        "2": [
+          "Built a custom memory allocator (`malloc`/`calloc`/`realloc`/`free`) in **C** that outperforms glibc by up to **100%** throughput with over **300%** memory reduction, placing **3rd of ~300** in UIUC's systems programming competition.",
+          "Implemented a real-time **TLSF** design with **128-bit** bitmask free-list indexing, localized arenas, deferred-free caching, compressed **32-bit** pointers, footer elision, and flag-encoded headers for **O(1)** neighbor checks."
+        ],
+        "3": [
+          "Built a custom memory allocator (`malloc`/`calloc`/`realloc`/`free`) in **C** that outperforms glibc by up to **100%** throughput with over **300%** memory reduction on targeted benchmarks, placing **3rd of ~300** students.",
+          "Designed a real-time **TLSF** allocator where every malloc and free runs in **O(1)** worst-case time, with **128-bit** bitmask free-list indexing, localized arena allocation, and a deferred-free cache exploiting temporal locality.",
+          "Engineered block-level optimizations including compressed **32-bit** pointers, boundary-tag coalescing with footer elision, and flag-encoded headers packing allocation status for **O(1)** neighbor checks without pointer chasing."
+        ],
+        "4": [
+          "Built a custom memory allocator (`malloc`/`calloc`/`realloc`/`free`) in **C** that outperforms glibc by up to **100%** throughput with over **300%** memory reduction on targeted benchmarks, placing **3rd of ~300** students.",
+          "Designed a real-time **TLSF** allocator where every malloc and free runs in **O(1)** worst-case time, with **128-bit** bitmask free-list indexing, localized arena allocation, and a deferred-free cache exploiting temporal locality.",
+          "Engineered block-level optimizations including compressed **32-bit** pointers, boundary-tag coalescing with footer elision, and flag-encoded headers packing allocation status for **O(1)** neighbor checks without pointer chasing.",
+          "Profiled allocation hot paths under adversarial workloads to tune segregated-fit bins and deferred-free thresholds, validating throughput and fragmentation improvements against glibc baselines."
+        ]
+      },
       "id": "malloc",
       "name": "Two-Level Segregated Fit Malloc",
       "subtitle": "High-Performance Memory Allocation",
       "tags": [
         "systems"
-      ],
-      "bullets": [
-        "Developed a custom memory allocator (`malloc`, `calloc`, `realloc`, `free`) in **C**, outperforming glibc by up to **100%** in throughput with over **300%** memory reduction on targeted benchmarks, placing **3rd of ~300** students.",
-        "Designed a **two-level segregated fit** (TLSF) allocator with **128-bit** bitmask free-list indexing, localized arena allocation, and a deferred-free cache to exploit repeated alloc/free patterns.",
-        "Engineered aggressive block-level optimizations including compressed **32-bit** pointers, boundary-tag coalescing with footer elision, and flag-encoded headers for **O(1)** neighbor status checks."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Building **Pragma**, a terminal agentic coding framework in **Go** with multi-provider LLM adapters, cost-budgeted model tiering, async process management, and `depends_on` topo-sorted parallel plans; in progress: **SQLite** knowledge graph, tool-call rejection, history compaction, and multi-agent plan mode."
+        ],
+        "2": [
+          "Built a terminal-based agentic coding framework in **Go** with multi-provider LLM adapters (**OpenAI**, **Anthropic**, **OpenRouter**), native/text tool calling, cost-budgeted model tiering, and `depends_on` topo-sort parallelism for independent subtasks.",
+          "In progress: a **SQLite** knowledge graph (structural, temporal, behavioral indexing) for graph-guided task decomposition, plus tool-call rejection, history compaction, and multi-agent plan mode."
+        ],
+        "3": [
+          "Built a terminal-based agentic coding framework in **Go** with multi-provider LLM adapters supporting **OpenAI**, **Anthropic**, and **OpenRouter**, featuring native and text-based tool calling with automatic provider detection.",
+          "Designed a cost budgeting system with per-task token tracking, fuzzy model-price matching, and automatic model tiering that cascades across providers as budget thresholds are hit, plus sequential plans with `depends_on` for topo-sort parallelism.",
+          "In progress: a **SQLite**-backed knowledge graph with structural indexing, temporal versioning, and co-change clustering for graph-guided task decomposition; living architecture docs; tool-call rejection; history compaction; and multi-agent plan mode."
+        ],
+        "4": [
+          "Built a terminal-based agentic coding framework in **Go** with multi-provider LLM adapters supporting **OpenAI**, **Anthropic**, and **OpenRouter**, featuring native and text-based tool calling with automatic provider detection.",
+          "Designed a cost budgeting system with per-task token tracking, fuzzy model-price matching, and automatic model tiering that cascades across providers, downgrading to cheaper models as budget thresholds are hit.",
+          "Engineered an event-driven async process manager with disk-backed output buffering, timeout enforcement, platform-agnostic process-tree killing, and compiler-error extraction from build logs, plus sequential plans with `depends_on` topo-sort parallelism (chosen over fragile LLM-generated DAGs).",
+          "In progress: a **SQLite**-backed knowledge graph with structural indexing, temporal versioning, and behavioral co-change analysis for graph-guided task decomposition; living architecture docs as persistent session memory; tool-call rejection; history compaction; and a multi-agent plan mode with per-child token budgets and tool permissions."
+        ]
+      },
       "id": "pragma",
       "name": "Pragma",
       "subtitle": "Coding Agent",
       "tags": [
         "ai_ml",
         "systems"
-      ],
-      "bullets": [
-        "Built a terminal-based agentic coding framework in **Go** with a **multi-provider LLM adapter** supporting OpenAI, Anthropic, and OpenRouter, featuring native and text-based tool calling with automatic provider detection.",
-        "Designed a **cost budgeting system** with per-task token tracking, a pricing table with fuzzy model matching, and automatic model tiering that cascades across providers, downgrading to cheaper models as budget thresholds are hit.",
-        "Engineered an event-driven async process manager with disk-backed output buffering, timeout enforcement, platform-agnostic process tree killing, and output filtering that extracts compiler errors from large build logs to minimize token usage.",
-        "Developing a **SQLite-backed knowledge graph** with structural indexing, temporal versioning, and behavioral analysis layers to power **graph-guided task decomposition** via co-change clusters, with a sequential plan architecture supporting topological-sort parallelism through `depends_on` metadata.",
-        "Implemented auto-generated design docs and a living architecture document with diff-based incremental updates, providing persistent session memory across agent restarts."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Won among **200+** Keywords AI hackathon participants with a full-stack **PyElastica** soft-robotics platform that turns natural language into physics simulations in under **20 seconds** (**FastAPI**/**Numba**, **React**/Vite)."
+        ],
+        "2": [
+          "Built a full-stack platform translating natural language into executable soft-robotics physics simulations via **PyElastica** (Cosserat rod theory), winning among **200+** Keywords AI hackathon participants.",
+          "Architected a **FastAPI** backend with **Numba** JIT and headless **Matplotlib**/**FFmpeg** rendering for end-to-end generation in under **20 seconds**, plus a **React**/Vite frontend with LLM-routed code generation."
+        ],
+        "3": [
+          "Built a full-stack platform translating natural language into executable soft-robotics physics simulations via **PyElastica** (Cosserat rod theory), winning among **200+** Keywords AI hackathon participants.",
+          "Architected a high-performance **FastAPI** backend with **Numba** JIT compilation and a headless **Matplotlib**/**FFmpeg** rendering pipeline for end-to-end simulation generation in under **20 seconds**.",
+          "Developed an interactive **React**/Vite frontend with real-time simulation visualization and LLM-routed code generation through the Keywords AI gateway."
+        ],
+        "4": [
+          "Built a full-stack platform translating natural language into executable soft-robotics physics simulations via **PyElastica** (Cosserat rod theory), winning among **200+** Keywords AI hackathon participants.",
+          "Architected a high-performance **FastAPI** backend with **Numba** JIT compilation and a headless **Matplotlib**/**FFmpeg** rendering pipeline for end-to-end simulation generation in under **20 seconds**.",
+          "Developed an interactive **React**/Vite frontend with real-time simulation visualization and LLM-routed code generation through the Keywords AI gateway.",
+          "Integrated Cosserat-rod physics parameters into the LLM prompt schema so generated simulations remain physically plausible while staying editable from the natural-language interface."
+        ]
+      },
       "id": "squishy",
       "name": "Squishy.ai",
       "subtitle": "LLM-Driven Soft Robotics Simulation Platform",
       "tags": [
         "fullstack",
         "ai_ml"
-      ],
-      "bullets": [
-        "Built a full-stack platform that translates natural language into executable soft robotics physics simulations via **PyElastica** (Cosserat rod theory), placing as a **winner** at the Keywords AI hackathon among **200+** participants.",
-        "Architected a high-performance **FastAPI** backend with **Numba** JIT compilation and a headless **Matplotlib/FFmpeg** rendering pipeline for end-to-end simulation generation in **under 20 seconds**.",
-        "Developed an interactive **React/Vite** frontend featuring real-time simulation visualization and LLM-routed code generation through the Keywords AI gateway."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Built an interactive **Lean4** proof game (**2** worlds, **24** levels) teaching undergraduate group theory via **1,200+** lines of formalized algebra, with progressive hints from axioms to subgroup characterizations."
+        ],
+        "2": [
+          "Built an interactive **Lean4** proof game hosted on the Lean Game Server: **2** worlds, **24** levels teaching abelian groups, subgroups, and normal subgroups through guided theorem proving.",
+          "Formalized **1,200+** lines of **Lean4** covering identity uniqueness, inverses, cancellation, conjugacy, and subgroup tests on a notation-agnostic `MyGroup` typeclass, with progressive levels decomposing proofs into structured learning blocks."
+        ],
+        "3": [
+          "Built an interactive **Lean4** proof game hosted on the Lean Game Server: **2** worlds, **24** levels teaching abelian groups, subgroups, and normal subgroups through guided theorem proving.",
+          "Formalized **1,200+** lines of **Lean4** encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, subgroup intersection, and the one-step subgroup test on a notation-agnostic `MyGroup` typeclass.",
+          "Designed progressive level sequences that decompose formalized proofs into structured learning blocks, with layered hints and narrative annotations guiding players from basic group axioms to advanced subgroup characterizations."
+        ]
+      },
       "id": "lean4game",
       "name": "Abstract Algebra, the Game",
       "subtitle": "Interactive Lean4 Proof Game",
       "tags": [
         "formal_methods",
         "pedagogy"
-      ],
-      "bullets": [
-        "Developed an interactive **Lean4** proof game hosted on the Lean Game Server comprising **2 worlds** and **24 levels** that teach group theory through guided theorem proving, covering abelian groups, subgroups, and normal subgroups.",
-        "Formalized **1,200+** lines of **Lean4** encoding identity uniqueness, inverses, cancellation laws, commutators, conjugation, subgroup intersection, and the one-step subgroup test, building a notation-agnostic `MyGroup` typeclass.",
-        "Designed progressive level sequences that decompose **formalized proofs** into **structured learning blocks**, with layered hints and narrative annotations guiding players from basic group axioms to advanced subgroup characterizations."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Architected a multithreaded UDP store-and-forward audio relay in **C** with per-peer **pthreads** and a **lock-free** ring buffer, validating **<500 ms** latency over a **~900 mile** path on live calls."
+        ],
+        "2": [
+          "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX** sockets and per-peer **pthreads**, replacing a single-threaded poll loop that serialized concurrent sessions.",
+          "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** path, using a **lock-free** ring buffer to eliminate mutex contention on concurrent ingest and voicemail playback."
+        ],
+        "3": [
+          "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX** sockets and per-peer **pthreads**, replacing a single-threaded poll loop that caused head-of-line blocking under concurrent sessions.",
+          "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, showing store-and-forward relay semantics can still meet interactive latency requirements.",
+          "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, a deliberate choice after profiling showed a mutex-backed prototype introduced measurable tail latency under load."
+        ],
+        "4": [
+          "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX** sockets and per-peer **pthreads**, replacing a single-threaded poll loop that caused head-of-line blocking under concurrent sessions.",
+          "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, showing store-and-forward relay semantics can still meet interactive latency requirements.",
+          "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, a deliberate choice after profiling showed a mutex-backed prototype introduced measurable tail latency under load.",
+          "Instrumented per-peer queues and packet timing to isolate head-of-line blocking under concurrent sessions, guiding the migration from a mutex-backed prototype to the lock-free ingest path."
+        ]
+      },
       "id": "audio_relay",
       "name": "Asynchronous Audio Relay",
       "subtitle": "Low-Latency Concurrent Systems \\& Networking",
       "tags": [
         "networking",
         "systems"
-      ],
-      "bullets": [
-        "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX sockets** and per-peer **pthreads**, replacing a single-threaded poll loop that serialized concurrent sessions and amplified head-of-line blocking.",
-        "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, demonstrating that store-and-forward relay semantics need not trade away interactive responsiveness.",
-        "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, eliminating mutex contention on the hot path versus a mutex-backed prototype that introduced measurable tail latency under load."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Architecting a **C++20** end-to-end encrypted group messenger with lock-free **SPSC** storage, **io\\_uring**/IOCP async transports, and a store-and-ref relay that fans out permission-gated **MessageRef**s."
+        ],
+        "2": [
+          "Architecting a **C++20** end-to-end encrypted group messaging platform where the relay never sees plaintext: lock-free **SPSC** chunked deque storage, tag-based routing, and permission-gated fan-out.",
+          "Implemented cross-platform async TCP with **io\\_uring** (Linux) and **IOCP** (Windows), plus a store-and-ref pipeline that stores messages once and fans out lightweight **MessageRef**s to all connected devices."
+        ],
+        "3": [
+          "Architecting a **C++20** end-to-end encrypted group messaging platform where the relay never sees plaintext: lock-free **SPSC** chunked deque storage, tag-based message routing, and permission-gated fan-out.",
+          "Implemented cross-platform async TCP transports with **io\\_uring** on Linux and **IOCP** on Windows, unified under a platform-abstracted event loop with a typed alias system and forward-compatible framing protocol.",
+          "Designed a store-and-ref pipeline where the relay performs permission checks, stores messages in per-account chunked deques, and fans out lightweight **MessageRef**s to connected devices without duplicating message storage."
+        ],
+        "4": [
+          "Architecting a **C++20** end-to-end encrypted group messaging platform where the relay never sees plaintext: lock-free **SPSC** chunked deque storage, tag-based message routing, and permission-gated fan-out.",
+          "Implemented cross-platform async TCP transports with **io\\_uring** on Linux and **IOCP** on Windows, unified under a platform-abstracted event loop with a typed alias system and forward-compatible framing protocol.",
+          "Designed a store-and-ref pipeline where the relay performs permission checks, stores messages in per-account chunked deques, and fans out lightweight **MessageRef**s to connected devices without duplicating message storage.",
+          "Specified a forward-compatible framing and typed alias system so device clients can evolve independently while the relay continues to route tag-addressed, permission-gated group traffic."
+        ]
+      },
       "id": "logana",
       "name": "Logana",
       "subtitle": "Privacy-First Encrypted Messaging Platform",
@@ -440,43 +580,75 @@
         "security",
         "networking",
         "systems"
-      ],
-      "bullets": [
-        "Architecting a **C++20** end-to-end encrypted group messaging platform with lock-free **SPSC chunked deque** storage, tag-based message routing, and permission-gated fan-out over a relay architecture.",
-        "Implemented cross-platform async TCP transports with **io\\_uring** on Linux and **IOCP** on Windows, unified under a platform-abstracted event loop with a typed alias system and forward-compatible framing protocol.",
-        "Designed a store-and-ref pipeline where the relay router performs permission checks, stores messages in per-account chunked deque containers, and fans out lightweight **MessageRef**s to connected devices."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Designing a **C++20** compiler frontend for Cherimoya with ownership primitives (`val`/`addr`/`move`/`free`) and a **15-level** precedence grammar: Pratt parser, span-based lexer, **Catch2**-tested multi-error recovery toward self-hosting."
+        ],
+        "2": [
+          "Designing a **C++20** compiler frontend for Cherimoya featuring ownership-oriented primitives (`val`, `addr`, `move`, `free`) and a **15-level** operator precedence grammar, targeting a self-hosting systems language.",
+          "Built a Pratt expression parser over a `unique_ptr` AST and a span-based lexer with multi-error recovery, covered by **Catch2** tests across operators, numeric bases, and keywords."
+        ],
+        "3": [
+          "Designing a **C++20** compiler frontend for Cherimoya, a systems language featuring ownership-oriented primitives (`val`, `addr`, `move`, `free`) and a **15-level** operator precedence grammar, targeting a self-hosting compiler within a ground-up personal computing stack.",
+          "Built a Pratt (precedence-climbing) expression parser over a `unique_ptr` AST with nud/led binding powers, left/right associativity, and `ErrorExpr`-preserving recovery for multi-error reports.",
+          "Implemented a span-based lexer with maximal-munch scanning, offset-native source locations, and multi-error recovery, covered by **Catch2** tests across operators, numeric bases, and keywords."
+        ],
+        "4": [
+          "Designing a **C++20** compiler frontend for Cherimoya, a systems language featuring ownership-oriented primitives (`val`, `addr`, `move`, `free`) and a **15-level** operator precedence grammar, targeting a self-hosting compiler within a ground-up personal computing stack.",
+          "Built a Pratt (precedence-climbing) expression parser over a `unique_ptr` AST with nud/led binding powers, left/right associativity, and `ErrorExpr`-preserving recovery for multi-error reports.",
+          "Implemented a span-based lexer with maximal-munch scanning, offset-native source locations, and multi-error recovery, covered by **Catch2** tests across operators, numeric bases, and keywords.",
+          "Extending the parser with statement and declaration AST nodes, type parsing with qualifier ordering enforcement, three repeat forms, two pattern-match modes, and contract clause parsing for function-level pre/postconditions."
+        ]
+      },
       "id": "cherimoya",
       "name": "Cherimoya",
       "subtitle": "Systems Language Compiler Frontend",
       "tags": [
         "compilers",
         "systems"
-      ],
-      "bullets": [
-        "Designing a **C++20** compiler frontend for Cherimoya, a systems language featuring ownership-oriented primitives (`val`, `addr`, `move`, `free`) and a **15-level** operator precedence grammar, targeting a **self-hosting compiler** within a ground-up personal computing stack.",
-        "Built a Pratt (precedence-climbing) expression parser over a `unique_ptr` AST with nud/led binding powers, left/right associativity, and `ErrorExpr`-preserving recovery for multi-error reports.",
-        "Implemented a span-based lexer with maximal-munch scanning, offset-native source locations, and multi-error recovery, covered by **Catch2** tests across operators, numeric bases, and keywords.",
-        "Extending the parser with statement and declaration AST nodes, type parsing with qualifier ordering enforcement, three repeat forms, two pattern-match modes, and **contract clause** parsing for function-level pre/postconditions."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Designed and backtested multi-asset **Python** trading strategies (SMA, EMA+RSI, MACD, statistical arbitrage) across **6** crypto and FX symbols, achieving net-positive PnL and executing **40+** live-sim trades."
+        ],
+        "2": [
+          "Designed and backtested multi-asset algorithmic trading strategies in **Python** combining SMA crossovers, EMA+RSI filters, MACD momentum, and statistical arbitrage across **6** symbols spanning crypto and FX, achieving net-positive PnL.",
+          "Deployed strategies into a live simulation framework executing **40+** trades over a one-week evaluation period on real-time cryptocurrency and FX market data."
+        ],
+        "3": [
+          "Designed and backtested multi-asset algorithmic trading strategies in **Python** combining SMA crossovers, EMA+RSI filters, MACD momentum, and statistical arbitrage across **6** symbols.",
+          "Achieved net-positive PnL across a diversified portfolio spanning cryptocurrency (BTC, ETH, SOL) and foreign exchange (INR, ZAR, JPY) markets with distinct microstructure characteristics.",
+          "Deployed strategies into a live simulation framework executing **40+** trades over a one-week evaluation period on real-time cryptocurrency and FX market data."
+        ]
+      },
       "id": "sigecom",
       "name": "SIGEcom",
       "subtitle": "Systematic Trading Strategy Research \\& Simulation",
       "tags": [
         "quant_finance",
         "math"
-      ],
-      "bullets": [
-        "Designed and backtested **multi-asset algorithmic trading strategies** in **Python** combining SMA crossovers, EMA+RSI filters, MACD momentum, and statistical arbitrage across **6 symbols**.",
-        "Achieved **net-positive PnL** across a diversified portfolio spanning cryptocurrency (BTC, ETH, SOL) and foreign exchange (INR, ZAR, JPY) markets.",
-        "Deployed strategies into a live simulation framework executing **40+ trades** over a one-week evaluation period on real-time cryptocurrency and FX market data."
       ]
     },
     {
+      "bullets": {
+        "1": [
+          "Built a neural de-Americanization pipeline and **Cox-Ross-Rubinstein** binomial lattice in **Python** to strip early-exercise premia, construct implied-vol surfaces, and characterize early-exercise boundaries across regimes."
+        ],
+        "2": [
+          "Built a neural network de-Americanization pipeline that converts American option prices into European equivalents, enabling accurate implied volatility surface construction via Black-Scholes inversion.",
+          "Implemented the **Cox-Ross-Rubinstein** binomial lattice in **Python** to price European and American options and characterize early exercise boundaries across dividend, volatility, and rate regimes."
+        ],
+        "3": [
+          "Built a neural network de-Americanization pipeline that converts American option prices into European equivalents, stripping early-exercise premia that invalidate direct Black-Scholes inversion, for accurate implied volatility surface construction.",
+          "Implemented the **Cox-Ross-Rubinstein** binomial lattice in **Python** to price European and American options, validating convergence to Black-Scholes analytical values across strike and maturity grids.",
+          "Characterized early exercise boundaries across varying dividend, volatility, and interest rate regimes, quantifying the accuracy-performance tradeoff as a function of lattice depth."
+        ]
+      },
       "id": "fin_eng",
       "name": "Financial Engineering",
       "subtitle": "Quantitative Options Pricing \\& ML-Based Volatility Modeling",
@@ -484,11 +656,6 @@
         "quant_finance",
         "math",
         "ai_ml"
-      ],
-      "bullets": [
-        "Applied **neural network de-Americanization** to convert American option prices into European equivalents, enabling accurate **implied volatility surface** construction via Black-Scholes inversion.",
-        "Implemented the **Cox-Ross-Rubinstein** binomial lattice in **Python** to price European and American options, validating convergence to Black-Scholes analytical values across strike and maturity grids.",
-        "Characterized **early exercise boundaries** across varying dividend, volatility, and interest rate regimes, quantifying the accuracy-performance tradeoff as a function of lattice depth."
       ]
     }
   ]

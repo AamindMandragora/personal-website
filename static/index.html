@@ -138,6 +138,9 @@
   .cv-entry-head { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
   .cv-entry-head .grow { flex:1; }
   .cv-bullets { list-style:none; margin:8px 0 0; padding:0; }
+  .cv-bullet-variant { margin-top:12px; padding-top:10px; border-top:1px dashed #e4dfd4; }
+  .cv-bullet-variant:first-child { margin-top:4px; padding-top:0; border-top:none; }
+  .cv-bullet-variant-label { font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--doc-muted); margin-bottom:6px; font-family:'Source Sans 3', system-ui, sans-serif; display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .cv-bullet-row { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
   .cv-bullet-row::before { content:"•"; color:var(--doc-muted); padding-top:8px; flex-shrink:0; }
   .cv-bullet-row .cv-textarea { min-height:40px; flex:1; }
@@ -855,21 +858,87 @@ function setEntryTags(section, idx, text) {
   cvDraft[section][idx].tags = text.split(",").map(s => s.trim()).filter(Boolean);
 }
 
-function setBullet(section, idx, bIdx, value) {
-  if (!cvDraft?.[section]?.[idx]) return;
-  cvDraft[section][idx].bullets[bIdx] = value;
+function ensureBulletVariants(entry) {
+  if (!entry) return { "1": [""] };
+  const raw = entry.bullets;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const n = parseInt(k, 10);
+      if (!Number.isFinite(n) || n < 1 || !Array.isArray(v)) continue;
+      out[String(n)] = v.map(x => (x == null ? "" : String(x)));
+    }
+    if (Object.keys(out).length) {
+      entry.bullets = out;
+      return out;
+    }
+  }
+  if (Array.isArray(raw) && raw.length) {
+    const out = {};
+    for (let i = 1; i <= raw.length; i++) out[String(i)] = raw.slice(0, i).map(String);
+    entry.bullets = out;
+    return out;
+  }
+  entry.bullets = { "1": [""] };
+  return entry.bullets;
 }
 
-function addBullet(section, idx) {
-  if (!cvDraft?.[section]?.[idx]) return;
-  cvDraft[section][idx].bullets = cvDraft[section][idx].bullets || [];
-  cvDraft[section][idx].bullets.push("");
+function bulletVariantKeys(entry) {
+  return Object.keys(ensureBulletVariants(entry))
+    .map(k => parseInt(k, 10))
+    .filter(n => Number.isFinite(n) && n > 0)
+    .sort((a, b) => a - b);
+}
+
+function setBullet(section, idx, count, bIdx, value) {
+  const entry = cvDraft?.[section]?.[idx];
+  if (!entry) return;
+  const variants = ensureBulletVariants(entry);
+  const key = String(count);
+  variants[key] = variants[key] || [];
+  variants[key][bIdx] = value;
+}
+
+function addBulletVariant(section, idx) {
+  const entry = cvDraft?.[section]?.[idx];
+  if (!entry) return;
+  const variants = ensureBulletVariants(entry);
+  const keys = bulletVariantKeys(entry);
+  const next = keys.length ? Math.max(...keys) + 1 : 1;
+  if (next > 6) return;
+  const prev = keys.length ? variants[String(Math.max(...keys))] || [] : [];
+  variants[String(next)] = [...prev.map(String), ""];
   render();
 }
 
-function removeBullet(section, idx, bIdx) {
-  if (!cvDraft?.[section]?.[idx]) return;
-  cvDraft[section][idx].bullets.splice(bIdx, 1);
+function removeBulletVariant(section, idx, count) {
+  const entry = cvDraft?.[section]?.[idx];
+  if (!entry) return;
+  const variants = ensureBulletVariants(entry);
+  const keys = bulletVariantKeys(entry);
+  if (keys.length <= 1) return;
+  delete variants[String(count)];
+  render();
+}
+
+function addBulletInVariant(section, idx, count) {
+  const entry = cvDraft?.[section]?.[idx];
+  if (!entry) return;
+  const variants = ensureBulletVariants(entry);
+  const key = String(count);
+  variants[key] = variants[key] || [];
+  variants[key].push("");
+  render();
+}
+
+function removeBulletInVariant(section, idx, count, bIdx) {
+  const entry = cvDraft?.[section]?.[idx];
+  if (!entry) return;
+  const variants = ensureBulletVariants(entry);
+  const key = String(count);
+  if (!variants[key]) return;
+  variants[key].splice(bIdx, 1);
+  if (!variants[key].length) variants[key] = [""];
   render();
 }
 
@@ -882,7 +951,11 @@ function addEntry(section) {
     subtitle: "",
     dates: "",
     tags: [],
-    bullets: [""],
+    bullets: {
+      "1": [""],
+      "2": ["", ""],
+      "3": ["", "", ""],
+    },
   });
   render();
 }
@@ -964,7 +1037,10 @@ function renderEntrySection(title, section) {
   const entries = cvDraft[section] || [];
   return `
     <h2>${escapeHtml(title)}</h2>
-    ${entries.map((entry, idx) => `
+    ${entries.map((entry, idx) => {
+      ensureBulletVariants(entry);
+      const keys = bulletVariantKeys(entry);
+      return `
       <div class="cv-entry">
         <div class="cv-entry-head">
           <div class="grow">
@@ -987,19 +1063,34 @@ function renderEntrySection(title, section) {
             <button class="cv-mini-btn danger" onclick="removeEntry('${section}',${idx})" title="Remove">✕</button>
           </div>
         </div>
-        <ul class="cv-bullets">
-          ${(entry.bullets || []).map((b, bIdx) => `
-            <li class="cv-bullet-row">
-              <textarea class="cv-textarea cv-autosize" oninput="setBullet('${section}',${idx},${bIdx},this.value);autosizeTextarea(this)">${escapeHtml(b)}</textarea>
-              <button class="cv-mini-btn danger" onclick="removeBullet('${section}',${idx},${bIdx})">✕</button>
-            </li>
-          `).join("")}
-        </ul>
+        <div class="cv-bullets">
+          ${keys.map(count => {
+            const list = entry.bullets[String(count)] || [];
+            return `
+              <div class="cv-bullet-variant">
+                <div class="cv-bullet-variant-label">
+                  <span>${count}-bullet version</span>
+                  <span>
+                    <button class="cv-mini-btn" onclick="addBulletInVariant('${section}',${idx},${count})">+ Line</button>
+                    ${keys.length > 1 ? `<button class="cv-mini-btn danger" onclick="removeBulletVariant('${section}',${idx},${count})">Remove version</button>` : ""}
+                  </span>
+                </div>
+                ${list.map((b, bIdx) => `
+                  <div class="cv-bullet-row">
+                    <textarea class="cv-textarea cv-autosize" oninput="setBullet('${section}',${idx},${count},${bIdx},this.value);autosizeTextarea(this)">${escapeHtml(b)}</textarea>
+                    <button class="cv-mini-btn danger" onclick="removeBulletInVariant('${section}',${idx},${count},${bIdx})">✕</button>
+                  </div>
+                `).join("")}
+              </div>
+            `;
+          }).join("")}
+        </div>
         <div class="cv-section-actions">
-          <button class="cv-mini-btn" onclick="addBullet('${section}',${idx})">+ Bullet</button>
+          <button class="cv-mini-btn" onclick="addBulletVariant('${section}',${idx})">+ N-bullet version</button>
         </div>
       </div>
-    `).join("")}
+    `;
+    }).join("")}
     <div class="cv-section-actions">
       <button class="cv-mini-btn" onclick="addEntry('${section}')">+ Add ${escapeHtml(title.slice(0, -1) || "entry")}</button>
     </div>

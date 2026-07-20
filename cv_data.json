@@ -1,10 +1,39 @@
 {
-  "name": "Advayth Pashupati",
-  "location": "Chicago, IL",
-  "email": "advayth2@illinois.edu",
-  "phone": "+1 (224) 391-2254",
-  "github": "https://github.com/AamindMandragora/",
-  "linkedin": "https://www.linkedin.com/in/advayth-pashupati/",
+  "award_tags": [
+    {
+      "name": "YC Startup School 2026",
+      "tags": [
+        "ai_ml",
+        "fullstack"
+      ]
+    },
+    {
+      "name": "AIME Qualifier",
+      "tags": [
+        "math"
+      ]
+    },
+    {
+      "name": "USACO Silver Division",
+      "tags": [
+        "systems",
+        "math"
+      ]
+    },
+    {
+      "name": "Quiz Bowl Nationals",
+      "tags": [
+        "pedagogy",
+        "math"
+      ]
+    }
+  ],
+  "awards": [
+    "YC Startup School 2026",
+    "AIME Qualifier",
+    "USACO Silver Division",
+    "Quiz Bowl Nationals"
+  ],
   "education": {
     "coursework": [
       "Abstract Algebra",
@@ -109,213 +138,7 @@
     "degree": "B.S. in Mathematics and Computer Science (Technical GPA: 4.0, Overall GPA: 3.99); Honors: James Scholar, Dean's List x2",
     "school": "University of Illinois at Urbana-Champaign"
   },
-  "awards": [
-    "YC Startup School 2026",
-    "AIME Qualifier",
-    "USACO Silver Division",
-    "Quiz Bowl Nationals"
-  ],
-  "award_tags": [
-    {
-      "name": "YC Startup School 2026",
-      "tags": [
-        "ai_ml",
-        "fullstack"
-      ]
-    },
-    {
-      "name": "AIME Qualifier",
-      "tags": [
-        "math"
-      ]
-    },
-    {
-      "name": "USACO Silver Division",
-      "tags": [
-        "systems",
-        "math"
-      ]
-    },
-    {
-      "name": "Quiz Bowl Nationals",
-      "tags": [
-        "pedagogy",
-        "math"
-      ]
-    }
-  ],
-  "languages": [],
-  "language_tags": [
-    {
-      "name": "Lean4",
-      "tags": [
-        "formal_methods"
-      ]
-    },
-    {
-      "name": "Dafny",
-      "tags": [
-        "formal_methods"
-      ]
-    },
-    {
-      "name": "Python",
-      "tags": [
-        "ai_ml",
-        "fullstack"
-      ]
-    },
-    {
-      "name": "C++",
-      "tags": [
-        "systems",
-        "compilers"
-      ]
-    },
-    {
-      "name": "C",
-      "tags": [
-        "systems"
-      ]
-    },
-    {
-      "name": "Go",
-      "tags": [
-        "systems",
-        "ai_ml"
-      ]
-    },
-    {
-      "name": "Verilog",
-      "tags": [
-        "systems"
-      ]
-    },
-    {
-      "name": "Rust",
-      "tags": [
-        "systems"
-      ]
-    },
-    {
-      "name": "SQL",
-      "tags": [
-        "fullstack"
-      ]
-    },
-    {
-      "name": "React",
-      "tags": [
-        "fullstack"
-      ]
-    },
-    {
-      "name": "TypeScript",
-      "tags": [
-        "fullstack"
-      ]
-    },
-    {
-      "name": "HTML/CSS/JS",
-      "tags": [
-        "fullstack"
-      ]
-    }
-  ],
-  "tools": [
-    "Arch Linux",
-    "Neovim",
-    "Tensorflow",
-    "NumPy",
-    "MongoDB",
-    "FastAPI",
-    "AWS Bedrock",
-    "Claude Code/Codex/Cursor"
-  ],
-  "tool_tags": [
-    {
-      "name": "Arch Linux",
-      "tags": [
-        "systems"
-      ]
-    },
-    {
-      "name": "Neovim",
-      "tags": [
-        "systems"
-      ]
-    },
-    {
-      "name": "Tensorflow",
-      "tags": [
-        "ai_ml"
-      ]
-    },
-    {
-      "name": "NumPy",
-      "tags": [
-        "ai_ml",
-        "quant_finance"
-      ]
-    },
-    {
-      "name": "MongoDB",
-      "tags": [
-        "fullstack"
-      ]
-    },
-    {
-      "name": "FastAPI",
-      "tags": [
-        "fullstack",
-        "ai_ml"
-      ]
-    },
-    {
-      "name": "AWS Bedrock",
-      "tags": [
-        "ai_ml"
-      ]
-    },
-    {
-      "name": "Claude Code/Codex/Cursor",
-      "tags": [
-        "ai_ml"
-      ]
-    }
-  ],
-  "research": [
-    {
-      "bullets": {
-        "1": [
-          "Building **MetaDecode**, a verified program-synthesis system that auto-generates constrained LLM decoding strategies: **2,700+** lines of **Dafny**, **60+** formally contracted helpers, and up to **30%** gains over expert baselines (**GCD**, **CRANE**, **IterGen**, **CARS**) across **GSM-Symbolic**, **Spider**, and **SMILES**; paper submitted to **AAAI 2027**."
-        ],
-        "2": [
-          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose contracts gate every LLM-synthesized strategy before **Python** transpilation.",
-          "Drove synthesis via a **Thompson-sampling** bandit over a program tree and architected apples-to-apples evaluation against **GCD**, **CRANE**, **IterGen**, and **CARS**, achieving up to **30%** improvement across **GSM-Symbolic**, **Spider**, and **SMILES**; paper submitted to **AAAI 2027**."
-        ],
-        "3": [
-          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose formal pre/postcondition contracts gate every LLM-synthesized strategy before **Python** transpilation.",
-          "Guided synthesis search with a **Thompson-sampling** bandit over a tree of candidate programs, accepting only strategies that both verify in **Dafny** and improve the empirical task objective under hard correctness constraints.",
-          "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified splits and syntax-annotated scoring, achieving up to **30%** gains across **GSM-Symbolic**, **Spider**, and **SMILES** (**100+** configs, **Qwen3.5** ablations); paper submitted to **AAAI 2027**."
-        ],
-        "4": [
-          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose formal pre/postcondition contracts gate every LLM-synthesized strategy before **Python** transpilation.",
-          "Guided synthesis search with a **Thompson-sampling** bandit over a tree of candidate programs, accepting only strategies that both verify in **Dafny** and improve the empirical task objective under hard correctness constraints.",
-          "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified evaluation splits and syntax-annotated scoring that separate structural validity from semantic correctness.",
-          "Evaluated across **GSM-Symbolic**, **Spider**, and **SMILES** with **100+** ablation configurations and **Qwen3.5** evaluators, achieving up to **30%** improvement over expert-designed baselines; paper submitted to **AAAI 2027**."
-        ]
-      },
-      "dates": "Sept 2025 -- Present",
-      "id": "focal",
-      "name": "FOCAL Lab",
-      "subtitle": "Formal Verification \\& Verified LLM Decoding Research",
-      "tags": [
-        "formal_methods",
-        "ai_ml"
-      ]
-    }
-  ],
+  "email": "advayth2@illinois.edu",
   "experience": [
     {
       "bullets": {
@@ -413,6 +236,89 @@
       ]
     }
   ],
+  "github": "https://github.com/AamindMandragora/",
+  "language_tags": [
+    {
+      "name": "Lean4",
+      "tags": [
+        "formal_methods"
+      ]
+    },
+    {
+      "name": "Dafny",
+      "tags": [
+        "formal_methods"
+      ]
+    },
+    {
+      "name": "Python",
+      "tags": [
+        "ai_ml",
+        "fullstack"
+      ]
+    },
+    {
+      "name": "C++",
+      "tags": [
+        "systems",
+        "compilers"
+      ]
+    },
+    {
+      "name": "C",
+      "tags": [
+        "systems"
+      ]
+    },
+    {
+      "name": "Go",
+      "tags": [
+        "systems",
+        "ai_ml"
+      ]
+    },
+    {
+      "name": "Verilog",
+      "tags": [
+        "systems"
+      ]
+    },
+    {
+      "name": "Rust",
+      "tags": [
+        "systems"
+      ]
+    },
+    {
+      "name": "SQL",
+      "tags": [
+        "fullstack"
+      ]
+    },
+    {
+      "name": "React",
+      "tags": [
+        "fullstack"
+      ]
+    },
+    {
+      "name": "TypeScript",
+      "tags": [
+        "fullstack"
+      ]
+    },
+    {
+      "name": "HTML/CSS/JS",
+      "tags": [
+        "fullstack"
+      ]
+    }
+  ],
+  "languages": [],
+  "linkedin": "https://www.linkedin.com/in/advayth-pashupati/",
+  "location": "Chicago, IL",
+  "name": "Advayth Pashupati",
+  "phone": "+1 (224) 391-2254",
   "projects": [
     {
       "bullets": {
@@ -535,12 +441,12 @@
         "3": [
           "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX** sockets and per-peer **pthreads**, replacing a single-threaded poll loop that caused head-of-line blocking under concurrent sessions.",
           "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, showing store-and-forward relay semantics can still meet interactive latency requirements.",
-          "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, a deliberate choice after profiling showed a mutex-backed prototype introduced measurable tail latency under load."
+          "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback after profiling showed a mutex-backed prototype introduced measurable tail latency under load."
         ],
         "4": [
           "Architected a multithreaded UDP store-and-forward audio relay in **C** (Linux/Raspberry Pi) with **POSIX** sockets and per-peer **pthreads**, replacing a single-threaded poll loop that caused head-of-line blocking under concurrent sessions.",
           "Validated **<500 ms** end-to-end latency on live two-party calls across a **~900 mile** network path, showing store-and-forward relay semantics can still meet interactive latency requirements.",
-          "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback, a deliberate choice after profiling showed a mutex-backed prototype introduced measurable tail latency under load.",
+          "Engineered a **lock-free** ring buffer and append-only audio store for concurrent ingest and asynchronous voicemail playback after profiling showed a mutex-backed prototype introduced measurable tail latency under load.",
           "Instrumented per-peer queues and packet timing to isolate head-of-line blocking under concurrent sessions, guiding the migration from a mutex-backed prototype to the lock-free ingest path."
         ]
       },
@@ -658,5 +564,99 @@
         "ai_ml"
       ]
     }
+  ],
+  "research": [
+    {
+      "bullets": {
+        "1": [
+          "Building **MetaDecode**, a verified program-synthesis system that auto-generates constrained LLM decoding strategies: **2,700+** lines of **Dafny**, **60+** formally contracted helpers, and up to **30%** gains over expert baselines (**GCD**, **CRANE**, **IterGen**, **CARS**) across **GSM-Symbolic**, **Spider**, and **SMILES**; paper submitted to **AAAI 2027**."
+        ],
+        "2": [
+          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose contracts gate every LLM-synthesized strategy before runtime.",
+          "Drove synthesis via a **Thompson-sampling** bandit over a program tree and architected apples-to-apples evaluation against **GCD**, **CRANE**, **IterGen**, and **CARS**, achieving up to **30%** improvement across **GSM-Symbolic**, **Spider**, and **SMILES**; paper submitted to **AAAI 2027**."
+        ],
+        "3": [
+          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose formal verified contracts gate every LLM-synthesized strategy before runtime.",
+          "Guided synthesis search with a **Thompson-sampling** bandit over a tree of candidate programs, accepting only strategies that both verify in **Dafny** and improve the empirical task objective under hard correctness constraints.",
+          "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified splits and syntax-annotated scoring, achieving up to **30%** gains across **GSM-Symbolic**, **Spider**, and **SMILES** (**100+** configs, **Qwen3.5** ablations); paper submitted to **AAAI 2027**."
+        ],
+        "4": [
+          "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose formal verified contracts gate every LLM-synthesized strategy before runtime.",
+          "Guided synthesis search with a **Thompson-sampling** bandit over a tree of candidate programs, accepting only strategies that both verify in **Dafny** and improve the empirical task objective under hard correctness constraints.",
+          "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified evaluation splits and syntax-annotated scoring that separate structural validity from semantic correctness.",
+          "Evaluated across **GSM-Symbolic**, **Spider**, and **SMILES** with **100+** ablation configurations and **Qwen3.5** evaluators, achieving up to **30%** improvement over expert-designed baselines; paper submitted to **AAAI 2027**."
+        ]
+      },
+      "dates": "Sept 2025 -- Present",
+      "id": "focal",
+      "name": "FOCAL Lab",
+      "subtitle": "Formal Verification \\& Verified LLM Decoding Research",
+      "tags": [
+        "formal_methods",
+        "ai_ml"
+      ]
+    }
+  ],
+  "tool_tags": [
+    {
+      "name": "Arch Linux",
+      "tags": [
+        "systems"
+      ]
+    },
+    {
+      "name": "Neovim",
+      "tags": [
+        "systems"
+      ]
+    },
+    {
+      "name": "Tensorflow",
+      "tags": [
+        "ai_ml"
+      ]
+    },
+    {
+      "name": "NumPy",
+      "tags": [
+        "ai_ml",
+        "quant_finance"
+      ]
+    },
+    {
+      "name": "MongoDB",
+      "tags": [
+        "fullstack"
+      ]
+    },
+    {
+      "name": "FastAPI",
+      "tags": [
+        "fullstack",
+        "ai_ml"
+      ]
+    },
+    {
+      "name": "AWS Bedrock",
+      "tags": [
+        "ai_ml"
+      ]
+    },
+    {
+      "name": "Claude Code/Codex/Cursor",
+      "tags": [
+        "ai_ml"
+      ]
+    }
+  ],
+  "tools": [
+    "Arch Linux",
+    "Neovim",
+    "Tensorflow",
+    "NumPy",
+    "MongoDB",
+    "FastAPI",
+    "AWS Bedrock",
+    "Claude Code/Codex/Cursor"
   ]
 }

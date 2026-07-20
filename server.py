@@ -160,9 +160,14 @@ def invalidate_cv_cache():
     _comments_cache["comments"] = None
 
 
-def get_cv_data():
-    """Return CV source data from Mongo (cached), falling back to disk."""
-    if _cv_cache["data"] is not None:
+def get_cv_data(*, refresh=False, allow_disk_fallback=True):
+    """Return CV source data from Mongo (cached), optionally falling back to disk.
+
+    refresh=True bypasses the in-memory cache and re-reads Mongo.
+    allow_disk_fallback=False raises if Mongo is unavailable or has no document
+    (used by force PDF regeneration so it never silently uses cv_data.json).
+    """
+    if not refresh and _cv_cache["data"] is not None:
         return copy.deepcopy(_cv_cache["data"])
     try:
         def _read(col):
@@ -176,8 +181,14 @@ def get_cv_data():
             _cv_cache["data"] = doc["data"]
             _cv_cache["updated"] = doc.get("updated")
             return copy.deepcopy(doc["data"])
+        if not allow_disk_fallback:
+            raise RuntimeError("MongoDB has no CV document for slug={!r}".format(CV_SLUG))
     except Exception as exc:
+        if not allow_disk_fallback:
+            raise
         print(f"[cv] Mongo read failed, falling back to disk: {exc}")
+    if not allow_disk_fallback:
+        raise RuntimeError("MongoDB CV data unavailable")
     data = load_cv_data_from_disk()
     _cv_cache["data"] = data
     _cv_cache["updated"] = os.path.getmtime(CV_JSON_PATH) if os.path.exists(CV_JSON_PATH) else None
@@ -254,10 +265,12 @@ def normalize_comment_bullet(bullet):
     return {"variant": variant, "index": index, "quote": quote}
 
 
-def save_cv_data(data):
+def save_cv_data(data, *, allow_disk_fallback=False):
     """Persist CV JSON to Mongo (and local disk mirror) and refresh the cache.
 
     Uses $set on data/updated so sibling editor comments are preserved.
+    By default Mongo is required; disk is only a post-success mirror.
+    Set allow_disk_fallback=True only for offline/dev recovery paths.
     """
     if not isinstance(data, dict):
         raise ValueError("CV data must be a JSON object")
@@ -275,15 +288,14 @@ def save_cv_data(data):
 
     try:
         with_mongo_retry(_write)
-    except _MONGO_TRANSIENT as exc:
-        # Local editing should still work when Atlas TLS/network blips.
-        if IS_VERCEL:
-            raise
-        print(f"[cv] Mongo write failed, saving to cv_data.json: {exc}")
-        write_cv_data_to_disk(data)
-        _cv_cache["data"] = data
-        _cv_cache["updated"] = now
-        return now
+    except Exception as exc:
+        if allow_disk_fallback and not IS_VERCEL:
+            print(f"[cv] Mongo write failed, saving to cv_data.json: {exc}")
+            write_cv_data_to_disk(data)
+            _cv_cache["data"] = data
+            _cv_cache["updated"] = now
+            return now
+        raise RuntimeError(f"MongoDB write failed: {exc}") from exc
 
     try:
         write_cv_data_to_disk(data)
@@ -343,6 +355,7 @@ DEFAULT_EARLIEST_START_YEAR = 2024
 DEFAULT_EARLIEST_END_YEAR = 2024
 BULLET_FONT_SIZE = 10.2
 ENTRY_TITLE_SIZE = 10.6
+SECTION_HEADER_SIZE = 11
 MARKUP_SEGMENT_PATTERN = re.compile(r"\*\*(.+?)\*\*|`([^`]+)`")
 
 
@@ -1071,8 +1084,9 @@ def draw_bulleted_line(c, text, x, y, font_name="Helvetica", font_size=10, max_w
     return y
 
 def draw_section_header(c, title, x, y):
-    c.setFont(FONT_BOLD, 14)
-    c.drawString(x, y, title)
+    label = normalize_text(title).upper()
+    c.setFont(FONT_BOLD, SECTION_HEADER_SIZE)
+    c.drawString(x, y, label)
     y -= sv(5)
     c.setLineWidth(0.8)
     c.line(x, y, RIGHT, y)
@@ -1811,9 +1825,17 @@ def cv_pdf_is_stale():
     return float(updated) > os.path.getmtime(CV_PDF_PATH)
 
 
-def regenerate_cv_pdf():
-    """Generate the full CV PDF into memory (and /tmp or repo path when writable)."""
-    print("[cv] Generating CV PDF from MongoDB data...")
+def regenerate_cv_pdf(*, require_mongo=False):
+    """Generate the full CV PDF into memory (and /tmp or repo path when writable).
+
+    When require_mongo=True, always re-fetch CV JSON from MongoDB and never fall
+    back to cv_data.json. Raises on Mongo failure.
+    """
+    if require_mongo:
+        get_cv_data(refresh=True, allow_disk_fallback=False)
+        print("[cv] Generating CV PDF from fresh MongoDB data...")
+    else:
+        print("[cv] Generating CV PDF from CV data cache/source...")
     filtered = filter_cv({}, force_include_all_projects=True)
     pdf_bytes, err = generate_pdf(filtered, "CV", include_all_projects=True)
     if not pdf_bytes:
@@ -1846,17 +1868,18 @@ def load_pdf_bytes_from_disk():
 def get_cv_pdf_bytes(force=False):
     """Return current CV PDF bytes, regenerating when Mongo data is newer.
 
-    When force=True, drop memory/disk caches, reload CV data from Mongo,
-    and rebuild the PDF from scratch.
+    When force=True, drop memory caches, reload CV data from Mongo only
+    (never cv_data.json), and rebuild the PDF from scratch. Raises if Mongo
+    is unavailable so callers can return an error instead of a stale PDF.
     """
     if force:
         _cv_cache["data"] = None
         _cv_cache["updated"] = None
         _pdf_cache["bytes"] = None
         _pdf_cache["updated"] = None
-        if regenerate_cv_pdf():
-            return _pdf_cache.get("bytes")
-        return load_pdf_bytes_from_disk()
+        if not regenerate_cv_pdf(require_mongo=True):
+            raise RuntimeError("PDF regeneration from MongoDB failed")
+        return _pdf_cache.get("bytes")
 
     get_cv_data()
     updated = _cv_cache.get("updated")
@@ -1897,7 +1920,11 @@ def index():
 @app.route("/api/cv.pdf")
 def get_cv_pdf():
     force = request.args.get("force", "").strip().lower() in ("1", "true", "yes")
-    pdf_bytes = get_cv_pdf_bytes(force=force)
+    try:
+        pdf_bytes = get_cv_pdf_bytes(force=force)
+    except Exception as exc:
+        print(f"[cv] force regenerate failed: {exc}")
+        return jsonify({"error": str(exc), "source": "mongodb"}), 500
     if pdf_bytes:
         return send_file(
             BytesIO(pdf_bytes),
@@ -1936,11 +1963,12 @@ def put_cv():
         return jsonify({"error": "CV data must be a JSON object"}), 400
     try:
         updated = save_cv_data(data)
-        ok = regenerate_cv_pdf()
+        ok = regenerate_cv_pdf(require_mongo=True)
         if not ok:
             return jsonify({
                 "error": "Saved to MongoDB but PDF regeneration failed",
                 "updated": updated,
+                "source": "mongodb",
             }), 500
         return jsonify({"ok": True, "updated": updated, "source": "mongodb"})
     except Exception as exc:

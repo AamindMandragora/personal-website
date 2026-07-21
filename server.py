@@ -661,6 +661,16 @@ INDUSTRY_ALIASES = {
 }
 
 # ─── Config parsing ───
+def _split_config_list(val):
+    """Parse list values from [a, b] or bare a,b forms."""
+    if isinstance(val, list):
+        return [str(v).strip().strip("'\"").lower() for v in val if str(v).strip()]
+    text = str(val).strip().strip("'\"")
+    if text.startswith("[") and text.endswith("]"):
+        text = text[1:-1]
+    return [v.strip().strip("'\"").lower() for v in text.split(",") if v.strip()]
+
+
 def parse_config_text(text):
     config = {}
     selector_steps = []
@@ -674,23 +684,23 @@ def parse_config_text(text):
         key = key.strip().lower()
         val = val.strip()
         if val.startswith("[") and val.endswith("]"):
-            val = [v.strip().strip("'\"").lower() for v in val[1:-1].split(",") if v.strip()]
+            val = _split_config_list(val)
         else:
             val = val.strip("'\"")
         if key in ("industry", "industries"):
-            values = val if isinstance(val, list) else [str(val).lower()]
+            values = _split_config_list(val)
             selector_steps.append({"kind": "industry", "values": values})
             existing = config.get("industry", [])
             if isinstance(existing, str):
-                existing = [existing]
+                existing = _split_config_list(existing)
             config["industry"] = existing + values
             continue
         if key in ("project", "projects"):
-            values = val if isinstance(val, list) else [str(val).lower()]
+            values = _split_config_list(val)
             selector_steps.append({"kind": "projects", "values": values})
             existing = config.get("projects", [])
             if isinstance(existing, str):
-                existing = [existing]
+                existing = _split_config_list(existing)
             config["projects"] = existing + values
             continue
         config[key] = val
@@ -714,7 +724,7 @@ def filter_cv(config, *, force_include_all_projects=False):
     resolved_industries = []
     if industries:
         for i in industries:
-            resolved_industries.append(str(i).strip().lower())
+            resolved_industries.extend(_split_config_list(i))
 
     expanded_tags = _expanded_tags_from_industries(resolved_industries)
     data["_ordering_industries"] = resolved_industries
@@ -1427,21 +1437,23 @@ def _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, conten
 
 def _most_projects_key(entry):
     m = entry["metrics"]
-    return (m["projects"], m["avg_project_bullets"], m["fill"])
+    # Max project count first; among ties prefer more project bullets, then denser page.
+    return (m["projects"], m["project_bullets"], m["fill"])
 
 
 def _most_bullets_key(entry):
     m = entry["metrics"]
-    return (m["avg_project_bullets"], m["fill"], m["projects"])
+    # Total project bullets so 2×3 beats 1×4; fill still breaks near-ties.
+    return (m["project_bullets"], m["fill"], m["avg_project_bullets"], m["projects"])
 
 
 def _tightest_fill_key(entry):
     m = entry["metrics"]
-    return (m["fill"], m["avg_project_bullets"], m["projects"])
+    return (m["fill"], m["project_bullets"], m["projects"])
 
 
 def _select_layout_candidates(scored_plans):
-    """Pick up to three diverse layouts: most projects, most avg bullets/project, densest fill."""
+    """Pick up to three diverse layouts: most projects, most project bullets, densest fill."""
     if not scored_plans:
         return []
 
@@ -1454,10 +1466,11 @@ def _select_layout_candidates(scored_plans):
         }
 
     def plan_sig(entry):
+        plan = entry.get("plan") or {}
         return (
-            tuple((it.get("id"), count) for it, count in entry["plan"].get("research", [])),
-            tuple((it.get("id"), count) for it, count in entry["plan"].get("experience", [])),
-            tuple((it.get("id"), count) for it, count in entry["plan"].get("projects", [])),
+            tuple((it.get("id"), count) for it, count in plan.get("research", [])),
+            tuple((it.get("id"), count) for it, count in plan.get("experience", [])),
+            tuple((it.get("id"), count) for it, count in plan.get("projects", [])),
         )
 
     chosen = []
@@ -1481,7 +1494,7 @@ def _select_layout_candidates(scored_plans):
 
     # Prefer most-projects first so that option is never displaced by densest-fill.
     max_projects = max(e["metrics"]["projects"] for e in scored_plans)
-    max_avg = max(e["metrics"]["avg_project_bullets"] for e in scored_plans)
+    max_project_bullets = max(e["metrics"]["project_bullets"] for e in scored_plans)
     add_best(
         _most_projects_key,
         "most_projects",
@@ -1496,15 +1509,18 @@ def _select_layout_candidates(scored_plans):
         "most_bullets",
         lambda e: (
             "Most bullets"
-            if e["metrics"]["avg_project_bullets"] >= max_avg - 1e-9
-            else "Denser bullets"
+            if e["metrics"]["project_bullets"] >= max_project_bullets
+            else "More bullets"
         ),
     )
-    add_best(
-        _tightest_fill_key,
-        "tightest_fill",
-        "Tightest fill",
-    )
+    # Tightest fill must be the literal densest plan — never a leftover runner-up.
+    true_tightest = max(scored_plans, key=_tightest_fill_key)
+    if not add(true_tightest, "tightest_fill", "Tightest fill"):
+        for cand in chosen:
+            if plan_sig(cand) == plan_sig(true_tightest):
+                if "tightest" not in cand["label"].lower():
+                    cand["label"] = f"{cand['label']} · Tightest fill"
+                break
 
     leftovers = sorted(scored_plans, key=_tightest_fill_key, reverse=True)
     for idx, entry in enumerate(leftovers):
@@ -1673,17 +1689,13 @@ def _draw_resume_prefix(c, data):
     coursework_tags = edu.get("coursework_tags", [])
     coursework_ordered = _order_section(coursework_values, coursework_tags, ordering)
     if coursework_ordered:
-        coursework_prefix = "Relevant Coursework: "
-        coursework_body_x = LEFT + 14
-        coursework_body_w = WIDTH - (coursework_body_x - LEFT) - c.stringWidth(
-            coursework_prefix, FONT_REGULAR, 10
+        # Wrap across lines (typically two) instead of truncating to a single row.
+        coursework_text = "Relevant Coursework: " + ", ".join(
+            normalize_text(x) for x in coursework_ordered
         )
-        coursework_body = _fit_comma_list_one_line(
-            c, coursework_ordered, FONT_REGULAR, 10, max(0, coursework_body_w)
-        )
-        y = draw_bulleted_one_line(
+        y = draw_bulleted_line(
             c,
-            coursework_prefix + coursework_body,
+            coursework_text,
             LEFT,
             y,
             FONT_REGULAR,

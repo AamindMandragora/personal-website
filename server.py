@@ -1757,24 +1757,29 @@ def _draw_resume_prefix(c, data):
     coursework_tags = edu.get("coursework_tags", [])
     coursework_ordered = _order_section(coursework_values, coursework_tags, ordering)
     if coursework_ordered:
-        coursework_text = "Relevant Coursework: " + ", ".join(
-            normalize_text(x) for x in coursework_ordered
-        )
         max_cw_lines = data.get("_coursework_lines")
-        if max_cw_lines == 1:
-            y = draw_bulleted_one_line(
-                c, coursework_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16),
-            )
-        elif max_cw_lines is not None:
+        if max_cw_lines is not None and max_cw_lines >= 1:
             text_x = LEFT + 14
             available_width = WIDTH - (text_x - LEFT)
-            lines = wrap_text(c, coursework_text, FONT_REGULAR, 10, available_width)[:max_cw_lines]
-            c.setFont(FONT_REGULAR, 10)
-            c.drawString(LEFT + 6, y, u"•")
-            for line in lines:
-                c.drawString(text_x, y, line)
-                y -= sv(16)
+            prefix = "Relevant Coursework: "
+            fitted = []
+            for course in coursework_ordered:
+                trial = prefix + ", ".join(normalize_text(x) for x in fitted + [course])
+                if len(wrap_text(c, trial, FONT_REGULAR, 10, available_width)) > max_cw_lines:
+                    break
+                fitted.append(course)
+            if fitted:
+                final_text = prefix + ", ".join(normalize_text(x) for x in fitted)
+                lines = wrap_text(c, final_text, FONT_REGULAR, 10, available_width)
+                c.setFont(FONT_REGULAR, 10)
+                c.drawString(LEFT + 6, y, u"•")
+                for line in lines:
+                    c.drawString(text_x, y, line)
+                    y -= sv(16)
         else:
+            coursework_text = "Relevant Coursework: " + ", ".join(
+                normalize_text(x) for x in coursework_ordered
+            )
             y = draw_bulleted_line(
                 c, coursework_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16),
             )

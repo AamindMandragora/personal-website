@@ -681,7 +681,7 @@ def _split_config_list(val):
     return [v.strip().strip("'\"").lower() for v in text.split(",") if v.strip()]
 
 
-_SECTION_DOT_RE = re.compile(r'^(research|experience|projects)\.(.+)')
+_SECTION_DOT_RE = re.compile(r'^(research|experience|projects?)\.(.+)')
 
 
 def parse_config_text(text):
@@ -709,6 +709,8 @@ def parse_config_text(text):
         sec_match = _SECTION_DOT_RE.match(key)
         if sec_match:
             section = sec_match.group(1)
+            if section == "project":
+                section = "projects"
             sub_key = sec_match.group(2)
             sec_cfg = config.setdefault("_sections", {}).setdefault(section, {})
             if val.startswith("[") and val.endswith("]"):
@@ -783,30 +785,25 @@ def filter_cv(config, *, force_include_all_projects=False):
     )
 
     edu = data.get("education", {})
-    edu["coursework"] = _filter_tagged_names(
+    edu["coursework"] = _order_section(
         edu.get("coursework", []),
         edu.get("coursework_tags", []),
         resolved_industries,
-        expanded_tags,
     )
     data["education"] = edu
-    data["awards"] = _filter_tagged_names(
+    data["awards"] = _order_section(
         data.get("awards", []),
         data.get("award_tags", []),
         resolved_industries,
-        expanded_tags,
     )
-    filtered_language_tags = _normalize_tagged_items(data.get("language_tags", []))
-    if expanded_tags:
-        filtered_language_tags = [
-            item for item in filtered_language_tags if _item_matches_tags(item, expanded_tags)
-        ]
-    data["language_tags"] = filtered_language_tags
-    data["tools"] = _filter_tagged_names(
+    data["language_tags"] = _order_tagged_items(
+        _normalize_tagged_items(data.get("language_tags", [])),
+        resolved_industries,
+    )
+    data["tools"] = _order_section(
         data.get("tools", []),
         data.get("tool_tags", []),
         resolved_industries,
-        expanded_tags,
     )
 
     def select_projects_by_steps():
@@ -830,7 +827,8 @@ def filter_cv(config, *, force_include_all_projects=False):
                     item = project_lookup.get(project_key)
                     if item:
                         add_item(item)
-            elif step["kind"] == "industry":
+        for step in steps:
+            if step["kind"] == "industry":
                 for industry_key in step["values"]:
                     canonical = INDUSTRY_ALIASES.get(industry_key, industry_key)
                     tags = INDUSTRY_TAGS.get(canonical, {industry_key})
@@ -1762,10 +1760,20 @@ def _draw_resume_prefix(c, data):
         coursework_text = "Relevant Coursework: " + ", ".join(
             normalize_text(x) for x in coursework_ordered
         )
-        if data.get("_coursework_lines") == 1:
+        max_cw_lines = data.get("_coursework_lines")
+        if max_cw_lines == 1:
             y = draw_bulleted_one_line(
                 c, coursework_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16),
             )
+        elif max_cw_lines is not None:
+            text_x = LEFT + 14
+            available_width = WIDTH - (text_x - LEFT)
+            lines = wrap_text(c, coursework_text, FONT_REGULAR, 10, available_width)[:max_cw_lines]
+            c.setFont(FONT_REGULAR, 10)
+            c.drawString(LEFT + 6, y, u"•")
+            for line in lines:
+                c.drawString(text_x, y, line)
+                y -= sv(16)
         else:
             y = draw_bulleted_line(
                 c, coursework_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16),

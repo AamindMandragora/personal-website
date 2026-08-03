@@ -569,22 +569,22 @@
     {
       "bullets": {
         "1": [
-          "Building **MetaDecode**, a verified program-synthesis system that auto-generates constrained LLM decoding strategies: **2,700+** lines of **Dafny**, **60+** formally contracted helpers, and up to **30%** gains over expert baselines (**GCD**, **CRANE**, **IterGen**, **CARS**) across **GSM-Symbolic**, **Spider**, and **SMILES**; paper submitted to **AAAI 2027**."
+          "Building **MetaDecode**, a verified program-synthesis system that auto-generates constrained LLM decoding strategies: **2,700+** lines of **Dafny**, **60+** formally contracted helpers, and up to **30%** gains over expert baselines (**GCD**, **CRANE**, **IterGen**, **CARS**) across **GSM-Symbolic**, **Spider**, and **SMILES**."
         ],
         "2": [
           "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose contracts gate every LLM-synthesized strategy before runtime.",
-          "Drove synthesis via a **Thompson-sampling** bandit over a program tree and architected apples-to-apples evaluation against **GCD**, **CRANE**, **IterGen**, and **CARS**, achieving up to **30%** improvement across **GSM-Symbolic**, **Spider**, and **SMILES**; paper submitted to **AAAI 2027**."
+          "Drove synthesis via a **Thompson-sampling** bandit over a program tree and architected apples-to-apples evaluation against **GCD**, **CRANE**, **IterGen**, and **CARS**, achieving up to **30%** improvement across **GSM-Symbolic**, **Spider**, and **SMILES**."
         ],
         "3": [
           "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose formal verified contracts gate every LLM-synthesized strategy before runtime.",
           "Guided synthesis search with a **Thompson-sampling** bandit over a tree of candidate programs, accepting only strategies that both verify in **Dafny** and improve the empirical task objective under hard correctness constraints.",
-          "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified splits and syntax-annotated scoring, achieving up to **30%** gains across **GSM-Symbolic**, **Spider**, and **SMILES** (**100+** configs, **Qwen3.5** ablations); paper submitted to **AAAI 2027**."
+          "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified splits and syntax-annotated scoring, achieving up to **30%** gains across **GSM-Symbolic**, **Spider**, and **SMILES** (**100+** configs, **Qwen3.5** ablations)."
         ],
         "4": [
           "Building **MetaDecode**, which reframes constrained LLM decoding as verified program synthesis: **2,700+** lines of **Dafny** with **60+** cost-bounded helpers whose formal verified contracts gate every LLM-synthesized strategy before runtime.",
           "Guided synthesis search with a **Thompson-sampling** bandit over a tree of candidate programs, accepting only strategies that both verify in **Dafny** and improve the empirical task objective under hard correctness constraints.",
           "Architected unified baseline adapters for **GCD**, **CRANE**, **IterGen**, and **CARS**, plus stratified evaluation splits and syntax-annotated scoring that separate structural validity from semantic correctness.",
-          "Evaluated across **GSM-Symbolic**, **Spider**, and **SMILES** with **100+** ablation configurations and **Qwen3.5** evaluators, achieving up to **30%** improvement over expert-designed baselines; paper submitted to **AAAI 2027**."
+          "Evaluated across **GSM-Symbolic**, **Spider**, and **SMILES** with **100+** ablation configurations and **Qwen3.5** evaluators, achieving up to **30%** improvement over expert-designed baselines."
         ]
       },
       "dates": "Sept 2025 -- Present",

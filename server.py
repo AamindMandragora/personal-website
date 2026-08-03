@@ -478,6 +478,16 @@ def _available_bullet_counts(item, max_bullets=None, min_bullets=None):
     return keys
 
 
+def _section_bounds(bounds, section):
+    """Return (min_b, max_b) for a section, falling back to global."""
+    if not bounds:
+        return None, None
+    sec = bounds.get("sections", {}).get(section, {})
+    min_b = sec.get("min") if sec.get("min") is not None else bounds.get("min")
+    max_b = sec.get("max") if sec.get("max") is not None else bounds.get("max")
+    return min_b, max_b
+
+
 def _resolve_bullets(item, count=None):
     """Pick the bullet list for a target count (exact variant, else nearest <=)."""
     variants = _bullet_variants(item)
@@ -671,18 +681,41 @@ def _split_config_list(val):
     return [v.strip().strip("'\"").lower() for v in text.split(",") if v.strip()]
 
 
+_SECTION_DOT_RE = re.compile(r'^(research|experience|projects)\.(.+)')
+
+
 def parse_config_text(text):
     config = {}
     selector_steps = []
+    current_section = None
     for line in text.strip().split("\n"):
         line = line.strip()
         if not line or line.startswith("#") or line.startswith("//"):
             continue
+        block_open = re.match(r'^(\w+)\s*\{', line)
+        if block_open:
+            current_section = block_open.group(1).strip().lower().replace("-", "_")
+            continue
+        if line.startswith("}"):
+            current_section = None
+            continue
         if "=" not in line:
             continue
         key, val = line.split("=", 1)
-        key = key.strip().lower()
+        key = key.strip().lower().replace("-", "_")
         val = val.strip()
+        if current_section:
+            key = f"{current_section}.{key}"
+        sec_match = _SECTION_DOT_RE.match(key)
+        if sec_match:
+            section = sec_match.group(1)
+            sub_key = sec_match.group(2)
+            sec_cfg = config.setdefault("_sections", {}).setdefault(section, {})
+            if val.startswith("[") and val.endswith("]"):
+                sec_cfg[sub_key] = _split_config_list(val)
+            else:
+                sec_cfg[sub_key] = val.strip("'\"")
+            continue
         if val.startswith("[") and val.endswith("]"):
             val = _split_config_list(val)
         else:
@@ -871,19 +904,45 @@ def filter_cv(config, *, force_include_all_projects=False):
     if min_b is not None and max_b is not None and min_b > max_b:
         min_b, max_b = max_b, min_b
 
-    # Cap available bullet variants for research/experience by max_b if provided.
-    if max_b is not None:
-        for section in ("research", "experience"):
+    sections_cfg = config.get("_sections", {})
+    section_bounds = {}
+    for section in ("research", "experience", "projects"):
+        sec_cfg = sections_cfg.get(section, {})
+        sec_min_raw = sec_cfg.get("min_bullets")
+        sec_max_raw = sec_cfg.get("max_bullets")
+        sec_min = None
+        sec_max = None
+        if sec_min_raw is not None and str(sec_min_raw).strip():
+            sec_min = max(1, int(sec_min_raw))
+        if sec_max_raw is not None and str(sec_max_raw).strip():
+            sec_max = max(1, int(sec_max_raw))
+        if sec_min is not None and sec_max is not None and sec_min > sec_max:
+            sec_min, sec_max = sec_max, sec_min
+        if sec_min is not None or sec_max is not None:
+            sb = {}
+            if sec_min is not None:
+                sb["min"] = sec_min
+            if sec_max is not None:
+                sb["max"] = sec_max
+            section_bounds[section] = sb
+
+    bounds = {"min": min_b, "max": max_b}
+    if section_bounds:
+        bounds["sections"] = section_bounds
+    data["_bullet_bounds"] = bounds
+
+    for section in ("research", "experience", "projects"):
+        _, sec_max = _section_bounds(bounds, section)
+        if sec_max is not None:
             capped = []
             for it in data[section]:
                 variants = {
-                    k: v for k, v in _bullet_variants(it).items() if k <= max_b
+                    k: v for k, v in _bullet_variants(it).items() if k <= sec_max
                 }
                 if variants:
                     capped.append({**it, "bullets": _store_bullet_variants(variants)})
             data[section] = capped
 
-    # Drop empty items so we never render whitespace-only content blocks.
     for section in ("research", "experience", "projects"):
         cleaned = []
         for it in data[section]:
@@ -892,21 +951,27 @@ def filter_cv(config, *, force_include_all_projects=False):
                 cleaned.append({**it, "bullets": _store_bullet_variants(variants)})
         data[section] = cleaned
 
-    # Avoid sparse/empty resumes unless explicitly allowed.
     allow_empty = str(config.get("allow_empty", "false")).lower() == "true"
     if not allow_empty and not data["projects"]:
         data["projects"] = copy.deepcopy(source_cv.get("projects", []))[:3]
-        if max_b is not None:
+        _, p_max = _section_bounds(bounds, "projects")
+        if p_max is not None:
             capped = []
             for it in data["projects"]:
                 variants = {
-                    k: v for k, v in _bullet_variants(it).items() if k <= max_b
+                    k: v for k, v in _bullet_variants(it).items() if k <= p_max
                 }
                 if variants:
                     capped.append({**it, "bullets": _store_bullet_variants(variants)})
             data["projects"] = capped
 
-    data["_bullet_bounds"] = {"min": min_b, "max": max_b}
+    coursework_lines_raw = config.get("coursework_lines")
+    if coursework_lines_raw is not None:
+        try:
+            data["_coursework_lines"] = max(1, int(str(coursework_lines_raw).strip()))
+        except (TypeError, ValueError):
+            pass
+
     return data
 
 
@@ -1318,9 +1383,8 @@ def _layout_metrics(c, plan, start_y, content_w):
     }
 
 
-def _pack_prefix_sections(c, research, experience, min_bullets, max_bullets, start_y, content_w):
+def _pack_prefix_sections(c, research, experience, r_min, r_max, e_min, e_max, start_y, content_w):
     """Keep research/experience when possible; trim trailing entries/bullets first."""
-    lo = max(1, min_bullets) if min_bullets is not None else 1
     research_n = len(research)
     experience_n = len(experience)
 
@@ -1330,19 +1394,18 @@ def _pack_prefix_sections(c, research, experience, min_bullets, max_bullets, sta
         e_plan = []
         if r_items:
             y -= _estimate_section_header_height()
-            r_plan = _pack_bullet_counts(c, r_items, y, min_bullets, max_bullets, content_w)
+            r_plan = _pack_bullet_counts(c, r_items, y, r_min, r_max, content_w)
             if not r_plan and r_items:
                 return None
             for item, count in r_plan:
                 y -= _estimate_entry_height(c, _item_with_bullets(item, count), content_w)
         if e_items:
             y -= _estimate_section_header_height()
-            e_plan = _pack_bullet_counts(c, e_items, y, min_bullets, max_bullets, content_w)
+            e_plan = _pack_bullet_counts(c, e_items, y, e_min, e_max, content_w)
             if not e_plan and e_items:
                 return None
             for item, count in e_plan:
                 y -= _estimate_entry_height(c, _item_with_bullets(item, count), content_w)
-        # y includes trailing gap after the last entry; fit against ink bottom.
         ink_y = y + sv(8) if (r_plan or e_plan) else y
         if ink_y < BOTTOM:
             return None
@@ -1358,15 +1421,18 @@ def _pack_prefix_sections(c, research, experience, min_bullets, max_bullets, sta
     return {"research": [], "experience": [], "y_after": start_y}
 
 
-def _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, content_w):
+def _enumerate_tailored_plans(c, data, start_y, bounds, content_w):
     research = list(data.get("research", []))
     experience = list(data.get("experience", []))
     projects = list(data.get("projects", []))
-    hi = max_bullets if max_bullets is not None else None
 
-    # Try several prefix bullet budgets so projects can reclaim space.
-    # Always allow prefix down to 1 bullet even when min_bullets > 1 — the min
-    # still applies to projects; research/experience can thin out to fit more.
+    r_min, r_max = _section_bounds(bounds, "research")
+    e_min, e_max = _section_bounds(bounds, "experience")
+    p_min, p_max = _section_bounds(bounds, "projects")
+
+    prefix_maxes = [v for v in (r_max, e_max) if v is not None]
+    hi = max(prefix_maxes) if prefix_maxes else None
+
     prefix_caps = []
     if hi is None:
         prefix_caps = [None]
@@ -1380,12 +1446,16 @@ def _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, conten
     seen = set()
 
     for prefix_cap in prefix_caps:
-        # Prefix sections may use a lower floor than project min_bullets.
-        prefix_min = min_bullets
-        if prefix_cap is not None and (prefix_min is None or prefix_cap < prefix_min):
-            prefix_min = prefix_cap
+        eff_r_min = r_min
+        if prefix_cap is not None and (eff_r_min is None or prefix_cap < eff_r_min):
+            eff_r_min = prefix_cap
+        eff_e_min = e_min
+        if prefix_cap is not None and (eff_e_min is None or prefix_cap < eff_e_min):
+            eff_e_min = prefix_cap
         prefix = _pack_prefix_sections(
-            c, research, experience, prefix_min, prefix_cap, start_y, content_w
+            c, research, experience,
+            eff_r_min, prefix_cap, eff_e_min, prefix_cap,
+            start_y, content_w,
         )
         y_projects = prefix["y_after"]
 
@@ -1393,7 +1463,7 @@ def _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, conten
             subset = projects[:project_count]
             header_y = y_projects - _estimate_section_header_height()
             packed = _pack_bullet_counts(
-                c, subset, header_y, min_bullets, max_bullets, content_w
+                c, subset, header_y, p_min, p_max, content_w
             )
             if not packed or len(packed) < project_count:
                 continue
@@ -1530,8 +1600,8 @@ def _select_layout_candidates(scored_plans):
     return chosen[:3]
 
 
-def _plan_tailored_resume(c, data, start_y, min_bullets, max_bullets, content_w, strategy=None):
-    scored = _enumerate_tailored_plans(c, data, start_y, min_bullets, max_bullets, content_w)
+def _plan_tailored_resume(c, data, start_y, bounds, content_w, strategy=None):
+    scored = _enumerate_tailored_plans(c, data, start_y, bounds, content_w)
     if not scored:
         return {"research": [], "experience": [], "projects": []}
     strategy_key = (strategy or "tightest_fill").strip().lower()
@@ -1689,20 +1759,17 @@ def _draw_resume_prefix(c, data):
     coursework_tags = edu.get("coursework_tags", [])
     coursework_ordered = _order_section(coursework_values, coursework_tags, ordering)
     if coursework_ordered:
-        # Wrap across lines (typically two) instead of truncating to a single row.
         coursework_text = "Relevant Coursework: " + ", ".join(
             normalize_text(x) for x in coursework_ordered
         )
-        y = draw_bulleted_line(
-            c,
-            coursework_text,
-            LEFT,
-            y,
-            FONT_REGULAR,
-            10,
-            WIDTH,
-            sv(16),
-        )
+        if data.get("_coursework_lines") == 1:
+            y = draw_bulleted_one_line(
+                c, coursework_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16),
+            )
+        else:
+            y = draw_bulleted_line(
+                c, coursework_text, LEFT, y, FONT_REGULAR, 10, WIDTH, sv(16),
+            )
     y -= sv(12)
 
     y = draw_section_header(c, "Technical Skills and Awards", LEFT, y)
@@ -1758,15 +1825,18 @@ def generate_pdf(
 
         y = _draw_resume_prefix(c, data)
         bounds = data.get("_bullet_bounds", {}) if isinstance(data, dict) else {}
-        min_b = bounds.get("min")
-        max_b = bounds.get("max")
 
         if include_all_projects:
+            r_min, r_max = _section_bounds(bounds, "research")
+            e_min, e_max = _section_bounds(bounds, "experience")
+            p_min, p_max = _section_bounds(bounds, "projects")
             y, _ = draw_entries(
-                c, y, "Research", data.get("research", []), allow_new_page=True, max_bullets=max_b
+                c, y, "Research", data.get("research", []),
+                allow_new_page=True, min_bullets=r_min, max_bullets=r_max,
             )
             y, _ = draw_entries(
-                c, y, "Experience", data.get("experience", []), allow_new_page=True, max_bullets=max_b
+                c, y, "Experience", data.get("experience", []),
+                allow_new_page=True, min_bullets=e_min, max_bullets=e_max,
             )
             y, _ = draw_entries(
                 c,
@@ -1774,13 +1844,13 @@ def generate_pdf(
                 "Technical Projects",
                 data.get("projects", []),
                 allow_new_page=True,
-                min_bullets=min_b,
-                max_bullets=max_b,
+                min_bullets=p_min,
+                max_bullets=p_max,
                 keep_entry_together=False,
             )
         else:
             tailored = layout_plan or _plan_tailored_resume(
-                c, data, y, min_b, max_b, WIDTH, strategy=layout_strategy
+                c, data, y, bounds, WIDTH, strategy=layout_strategy
             )
             y, _ = draw_entries(
                 c,
@@ -1823,9 +1893,7 @@ def generate_layout_candidates(data, title="Resume", pdf_title=None):
     measure_c = canvas.Canvas(measure_buf, pagesize=letter, pageCompression=1)
     start_y = _draw_resume_prefix(measure_c, data)
     bounds = data.get("_bullet_bounds", {}) if isinstance(data, dict) else {}
-    min_b = bounds.get("min")
-    max_b = bounds.get("max")
-    scored = _enumerate_tailored_plans(measure_c, data, start_y, min_b, max_b, WIDTH)
+    scored = _enumerate_tailored_plans(measure_c, data, start_y, bounds, WIDTH)
     selected = _select_layout_candidates(scored)
     layouts = []
     for cand in selected:
